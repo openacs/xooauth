@@ -19,8 +19,7 @@ namespace eval ::xo::oauth {
       -package_key "xooauth" \
       -parameter {
         {folder_id 0}
-      } \
-      -instmixin {::xo::oauth::Server ::xo::oauth::Client}
+      }
 
   Package instproc init {} {
     next

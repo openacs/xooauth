@@ -273,7 +273,7 @@ namespace eval ::xo::oauth {
                                        -binary \
                                        -digest sha1 \
                                        -encoding base64 \
-                                       $hmac_sha1_key $base_string]
+                                       $hmac_sha1_key $signature_base_string]
 
     # FIXME - TODO: It seems, as if the LTI tool provider under
     # http://www.imsglobal.org/developers/BLTI/tool.php does not accept a URL-encoded
@@ -544,7 +544,7 @@ namespace eval ::xo::oauth {
       #return [::xowiki::utility urlencode $s]
       return [::xo::oauth::utility urlencode $s]
     }
-  
+
     #
     # Protocol Parameters
     #
