@@ -500,8 +500,7 @@ namespace eval ::xo::oauth {
       set parameter_pair_list [list]
 
       # Step 1: Get query parameters
-      foreach pair [split $uri(query) &] {
-        lassign [split $pair =] key value
+      foreach {key value} [ns_set array [ns_parsequery $uri(query)]] {
         #:msg "parameter_list [list [ns_urldecode $key] [ns_urldecode $value]]"
         lappend parameter_pair_list [list [:decode $key] [:decode $value]]
       }
@@ -515,8 +514,7 @@ namespace eval ::xo::oauth {
       # Step 3: Get Entity Body
       if {[string match "*x-www-form-urlencoded*" ${:content_type}]} {
         if {${:post_data} ne ""} {
-          foreach pair [split ${:post_data} &] {
-            lassign [split $pair =] key value
+          foreach {key value} [ns_set array [ns_parsequery ${:post_data}]] {
             #:msg "parameter_list [list [ns_urldecode $key] [ns_urldecode $value]]"
             lappend parameter_pair_list [list [:decode $key] [:decode $value]]
           }
