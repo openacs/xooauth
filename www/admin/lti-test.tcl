@@ -11,7 +11,7 @@ set chunk ""
 ad_form \
     -name zoom\
     -form {
-        {launch_url:text(text)
+        {launch_url:text(url)
             {label {Launch URL}}
             {value "https://lti.tools/saltire/tp"}
         }
