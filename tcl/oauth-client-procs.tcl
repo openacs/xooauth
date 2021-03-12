@@ -81,7 +81,9 @@ namespace eval ::xo::oauth {
     if {[$r set status_code] eq 200} {
       [:context] load_form_parameter
       #TODO: Also used by server - make a method
-      foreach {key value} [ns_set array [ns_parsequery [$r set data]] {
+      #TODO - Replace with a regexp
+      foreach pair [split [$r set data] &] {
+        lassign [split $pair =] key value
         set creds($key) [:decode $value]
         :log "set creds($key) [:decode $value]"
       }
