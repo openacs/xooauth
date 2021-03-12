@@ -139,7 +139,7 @@ user_id=me100}}
         ## Add potential GET parameters from the launch url to the signature parameters
         array set uri [uri::split $launch_url]
         foreach {key value} [ns_set array [ns_parsequery $uri(query)]] {
-           lappend signature_parameters [list [ns_urldecode $key] [ns_urldecode $value]]
+           lappend signature_parameters [list $key $value]
         }
 
         # signature
