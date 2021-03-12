@@ -1,3 +1,10 @@
+ad_include_contract {
+  Authorize
+} {
+  client:notnull
+  temp_credentials:notnull
+}
+
 # TODO: Handle cases, where we have no callback URL provided, as
 # described in: http://tools.ietf.org/html/rfc5849#section-2.2
 set client_title [$client title]
