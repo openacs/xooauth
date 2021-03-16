@@ -67,8 +67,7 @@ user_id=me100}}
         set lti_parameter ""
         if {$p ne ""} {
            foreach pair [split $p "\n"] {
-               if {[regexp {^[^=]+=[^=]+$} $pair]} {
-                   lassign [split $pair "="] key value
+               if {[regexp {^([^=]+)=([^=]+)$} $pair . key value]} {
                    lappend lti_params $key $value
                }
            }
@@ -159,7 +158,7 @@ user_id=me100}}
         set wrapper_id ltiLaunchFormSubmitArea
 
         # create the form
-        require_html_procs
+        xo::require_html_procs
         dom createDocument div lti
         $lti appendFromScript {
             ::html::div id $wrapper_id  {
