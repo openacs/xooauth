@@ -10,7 +10,7 @@
     <inherit-templates-p>f</inherit-templates-p>
     <auto-mount>oauth</auto-mount>
 
-    <version name="0.2d" url="http://openacs.org/repository/download/apm/xooauth-0.2d.apm">
+    <version name="0.3d" url="http://openacs.org/repository/download/apm/xooauth-0.3d.apm">
         <owner url="mailto:michael.aram@km.co.at">Michael Aram</owner>
         <summary>XOTcl based OAuth implementation for OpenACS</summary>
         <vendor url="https://km.co.at">KM</vendor>
@@ -28,7 +28,7 @@
         </description>
         <maturity>0</maturity>
 
-        <provides url="xooauth" version="0.2d"/>
+        <provides url="xooauth" version="0.3d"/>
         <requires url="xotcl-core" version="5.10.0d1"/>
 
         <callbacks>

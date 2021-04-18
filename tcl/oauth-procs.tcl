@@ -245,6 +245,7 @@ namespace eval ::xo::oauth {
     # I hope I have no error in reasoning here...
     # set sorted_parameter_pair_list [lsort -index 0 $encoded_parameter_pair_list]
     set sorted_concatenated_parameter_list [lsort $concatenated_parameter_list]
+    
     #:log "Sorted Concatenated Parameters"
     #foreach pair $sorted_concatenated_parameter_list {
     #  foreach {key value} $pair {
@@ -259,29 +260,15 @@ namespace eval ::xo::oauth {
 
   Signature instproc generate {} {
 
-    set signature_base_string [:construct_base_string]
+    set signature [ns_crypto::hmac string \
+                       -binary \
+                       -digest sha1 \
+                       -encoding base64 \
+                       [:encode ${:client_secret}]&[:encode ${:token_secret}] \
+                       [:construct_base_string] \
+                      ]
 
-    append hmac_sha1_key [:encode ${:client_secret}]
-    append hmac_sha1_key &
-    append hmac_sha1_key [:encode ${:token_secret}]
-
-    #package require sha1
-    #set hmac_sha1_digest [sha1::hmac -bin -key $hmac_sha1_key $signature_base_string]
-    #set oauth_signature_parameter [base64::encode $hmac_sha1_digest]
-
-    set oauth_signature_parameter [ns_crypto::hmac string \
-                                       -binary \
-                                       -digest sha1 \
-                                       -encoding base64 \
-                                       $hmac_sha1_key $signature_base_string]
-
-    # FIXME - TODO: It seems, as if the LTI tool provider under
-    # http://www.imsglobal.org/developers/BLTI/tool.php does not accept a URL-encoded
-    # encoding of the SBS. However, - if I remember correctly - Twitter wants
-    # us to encode that here... Needs further checking...
-    #set oauth_signature_parameter [:encode $oauth_signature_parameter]
-
-    return $oauth_signature_parameter
+    return $signature
   }
 
   Signature ad_instproc encode {s} {
