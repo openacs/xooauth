@@ -9,6 +9,11 @@
 
 }
 
+# TODO: implement the xooauth package using policies, or anybody
+# accessing this vuh will be able to execute package methods.
+ns_returnnotfound
+ad_script_abort
+
 regexp {[^/]*$} [ad_conn url] m
 
 if {$m eq ""} {
