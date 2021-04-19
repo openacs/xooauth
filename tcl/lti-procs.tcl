@@ -76,6 +76,14 @@ namespace eval ::xo {
         :property {tool_consumer_instance_url}          ;# Deprecated in LTI 2.0. Use custom_*
         :property {tool_consumer_instance_contact_email};# Deprecated in LTI 2.0. Use custom_*
 
+        :property {lis_outcome_service_url}             ;# LTI 1.1; return URL for placing outcome
+                                                        ;# Return single numeric value that scores
+                                                        ;# the value of launch activity.
+        :property {lis_result_sourcedid}                ;# LTI 1.1; encrypted ticket provided by the LMS to
+                                                        ;# ensure that the outcome is properly labeled for
+                                                        ;# the particular user, course, and link that are
+                                                        ;# involved in this interaction
+
         #
         # OAuth parameters
         #
