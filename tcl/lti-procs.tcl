@@ -238,6 +238,7 @@ namespace eval ::xo {
             {-height 700}
             {-sandbox "allow-same-origin allow-scripts allow-forms allow-top-navigation allow-popups allow-popups-to-escape-sandbox allow-downloads"}
             {-style "min-width:100%;width:100%;min-height:100%;"}
+            {-auto_launch_p 0}
         } {
             #
             # Set per-call parameters
@@ -295,9 +296,14 @@ namespace eval ::xo {
             # trouble. However, we might need a configuration option
             # to allow opening up in _parent frames.
             #
-            set target [expr { ${:launch_presentation_document_target} eq "iframe"
-                               ? "ltiframe${:oauth_nonce}"
-                               : "_blank" }]
+            if { ${:launch_presentation_document_target} eq "iframe"} {
+                set iframe_name "ltiframe${:oauth_nonce}"
+                set target "ltiframe${:oauth_nonce}"
+            } else {
+                set iframe_name ""
+                set target "_blank"
+            }
+
             set form_name ltiform_${:oauth_nonce}
             set wrapper_id ltiLaunchFormSubmitArea_${:oauth_nonce}
 
@@ -331,6 +337,13 @@ namespace eval ::xo {
 
             }
 
+            # auto launch
+            if {$auto_launch_p} {
+                template::add_body_handler \
+                    -event onload \
+                    -script [subst -nocommands {document.getElementById('$form_name').submit();}]
+            }
+
             set html [$lti asHTML]
             $lti delete
 
@@ -339,7 +352,7 @@ namespace eval ::xo {
                 set html ""
             }
 
-            return [list HTML $html form_name $form_name]
+            return [list HTML $html form_name $form_name iframe_name $iframe_name]
         }
     }
 
