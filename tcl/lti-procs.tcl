@@ -366,16 +366,6 @@ namespace eval ::xo {
 
     nx::Class create ::xo::lti::Zoom -superclass ::xo::lti::LTI {
         :property {launch_presentation_document_target iframe}  ;# window or iframe
-
-        :method init {} {
-            next
-            # Why are these not used for ZOOM?
-            unset -nocomplain :lis_person_sourcedid :lis_person_contact_email_primary
-
-            #set :oauth_consumer_key [parameter::get_global_value -package_key dotlrn-zoom -parameter LTIKey]
-            #set :launch_url [parameter::get_global_value -package_key dotlrn-zoom -parameter LTIUrl]
-            #set :shared_secret [parameter::get_global_value -package_key dotlrn-zoom -parameter LTISecret]
-        }
     }
 }
 
