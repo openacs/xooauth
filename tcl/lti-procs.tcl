@@ -222,10 +222,14 @@ namespace eval ::xo {
             :get_params_from_section "ns/server/[ns_info server]/lti"
 
             if {![info exists :roles]} {
+                set default_role [expr {[llength [info commands dotlrn_community::get_community_id]] > 0
+                                        ? "Learner"
+                                        : "Member"}]
+
                 set :roles [expr {[permission::permission_p \
                                        -party_id [::xo::cc user_id] \
                                        -object_id [ad_conn package_id] \
-                                       -privilege "admin"] ? "Administrator" : "Learner"}]
+                                       -privilege "admin"] ? "Administrator" : $default_role}]
             }
             set :lis_person_sourcedid [acs_user::get -element username]
             set :lis_person_contact_email_primary [acs_user::get -element email]
