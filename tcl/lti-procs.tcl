@@ -206,7 +206,7 @@ namespace eval ::xo {
             #    3) from configure file section /lti
             #
             # Iterate over class hierarchy until xo::lti::LTI is
-            # reached and set paramters.
+            # reached and set parameters.
             #
             foreach c [:info precedence] {
                 if {$c eq [current class]} {
