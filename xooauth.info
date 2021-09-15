@@ -28,7 +28,7 @@
         <maturity>0</maturity>
 
         <provides url="xooauth" version="0.3d"/>
-        <requires url="xotcl-core" version="5.10.0b1"/>
+        <requires url="xotcl-core" version="5.10.0"/>
 
         <callbacks>
         </callbacks>
