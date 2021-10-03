@@ -73,7 +73,7 @@ namespace eval ::xo::oauth {
       }
     }
     set p [::xo::oauth::Package initialize -url "/oauth"]
-    ::xo::clusterwide ns_cache flush xotcl_object_type_cache root_folder-[$p id]
+    ::acs::clusterwide ns_cache flush xotcl_object_type_cache root_folder-[$p id]
     ::content::folder::delete -folder_id [$p folder_id]
 
   }
