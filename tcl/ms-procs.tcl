@@ -228,7 +228,7 @@ namespace eval ::ms {
             set tokenArgs [expr { [info exists token]
                                   ? [list "Authorization" "Bearer $token"]
                                   : {} }]
-            if {$vars ne ""} {
+            if {$vars ne "" || $method eq "POST"} {
                 set body [:body -content_type $content_type -vars $vars]
                 set r [ns_http run \
                            -method $method \
@@ -473,6 +473,20 @@ namespace eval ::ms {
             return $r
         }
 
+        :method async_operation_status {msg r} {
+            :expect_status_code $msg $r 202
+            set location [ns_set iget [dict get $r headers] location]
+            set operationStatus [:check_async_operation $location]
+            ns_log notice "$msg async operation '$location' -> $operationStatus"
+            #
+            # Since this is an async operation, it might take a while,
+            # until this is done. We could add either a "wait" option
+            # (making this just usable in the background) or some
+            # background checking with a callback when finished.
+            #
+            return $operationStatus
+        }
+
         ###########################################################
         # ms::Graph "group" ensemble
         ###########################################################
@@ -684,6 +698,31 @@ namespace eval ::ms {
         # ms::Graph "team" ensemble
         ###########################################################
 
+        :public method "team archive" {
+            team_id
+            {-shouldSetSpoSiteReadOnlyForMembers ""}
+        } {
+            # Archive the specified team. When a team is archived,
+            # users can no longer send or like messages on any channel
+            # in the team, edit the team's name, description, or other
+            # settings, or in general make most changes to the
+            # team. Membership changes to the team continue to be
+            # allowed.
+            #
+            # Details: https://docs.microsoft.com/en-us/graph/api/team-archive
+            #
+            # @param shouldSetSpoSiteReadOnlyForMembers This optional
+            # parameter defines whether to set permissions for team
+            # members to read-only on the SharePoint Online site
+            # associated with the team. Setting it to false or
+            # omitting the body altogether will result in this step
+            # being skipped.
+            #
+            set r [:request -method POST -token [:token] \
+                       -url /teams/$team_id/archive?[:params {shouldSetSpoSiteReadOnlyForMembers}]]
+            return [:async_operation_status "team archive $team_id" $r]
+        }
+
         :public method "team create" {
             -description
             -displayName:required
@@ -705,19 +744,7 @@ namespace eval ::ms {
             set r [:request -method POST -token [:token] \
                        -vars {template@odata.bind description displayName visibility members:array,document} \
                        -url /teams]
-            #ns_log notice "RESULT of team create: $r"
-
-            :expect_status_code "team create $displayName" $r 202
-            set location [ns_set iget [dict get $r headers] location]
-            set teamsStatus [:check_async_operation $location]
-            ns_log notice "/team create async operation '$location' -> $teamsStatus"
-            #
-            # Since this is an async operation, it might take a while,
-            # until this is done. We could add either a "wait" option
-            # (making this just usable in the background) or some
-            # background checking with a callback when finished.
-            #
-            return $teamsStatus
+            return [:async_operation_status "team create $displayName" $r]
         }
 
         :public method "team clone" {
@@ -750,19 +777,7 @@ namespace eval ::ms {
                            visibility
                        } \
                        -url /teams/${team_id}/clone]
-            #ns_log notice "RESULT of team clone: $r"
-
-            :expect_status_code "team clone $displayName" $r 202
-            set location [ns_set iget [dict get $r headers] location]
-            set teamsStatus [:check_async_operation $location]
-            ns_log notice "/team clone async operation '$location' -> $teamsStatus"
-            #
-            # Since this is an async operation, it might take a while,
-            # until this is done. We could add either a "wait" option
-            # (making this just usable in the background) or some
-            # background checking with a callback when finished.
-            #
-            return $teamsStatus
+            return [:async_operation_status "team clone $displayName" $r]
         }
 
         :public method "team delete" {
@@ -802,6 +817,20 @@ namespace eval ::ms {
             set r [:request -method GET -token [:token] \
                        -url /teams/$team_id?[:params {expand select}]]
             return [:expect_status_code "team get $team_id" $r 200]
+        }
+
+        :public method "team unarchive" {
+            team_id
+        } {
+            # Restore an archived team. This restores users' ability to
+            # send messages and edit the team, abiding by tenant and
+            # team settings. Teams are archived using the archive API.
+            #
+            # Details: https://docs.microsoft.com/en-us/graph/api/team-unarchive
+            #
+            set r [:request -method POST -token [:token] \
+                       -url /teams/$team_id/unarchive]
+            return [:async_operation_status "team unarchive $team_id" $r]
         }
 
         #----------------------------------------------------------
