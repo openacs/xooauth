@@ -18,6 +18,7 @@
 
     @author Gustaf Neumann
 }
+::xo::library require rest-procs
 
 namespace eval ::ms {
 
@@ -49,14 +50,14 @@ namespace eval ::ms {
 
     ###########################################################
     #
-    # ms::Base class:
+    # ms::Graph class:
     #
-    # Base class to support for the Microsoft REST/Azure API
+    # Support for the Microsoft Graph API
+    # https://docs.microsoft.com/en-us/graph/use-the-api
     #
     ###########################################################
 
-    nx::Class create Base {
-
+    nx::Class create Graph -superclasses ::xo::REST {
         #
         # The "tenant" identifies an organization within azure.  One
         # OpenACS installation might talk to different tenants at the
@@ -81,174 +82,7 @@ namespace eval ::ms {
         #
         :property {tenant}
 
-        #
-        # The client_id/client_secret identifies the registered "app"
-        # for which later app-tokens are used to issue action via the
-        # REST interface.
-        #
-        :property {client_id}
-        :property {client_secret}
-
-        :method init {} {
-            #
-            # Make sure, we have the nsv array defined.
-            #
-            nsv_set -default msazure [self] ""
-
-            #
-            # Set defaults for instance variables from configuration file
-            #
-            set clientName [namespace tail [self]]
-            set section "ns/server/[ns_info server]/ms/$clientName"
-            foreach param {client_id client_secret version}  {
-                if {![info exists :$param]} {
-                    set value [ns_config $section $param]
-                    #ns_log notice "config value section '$section' param '$param' -> '$value'"
-                    if {$value ne ""} {
-                        ns_log notice "config value section '$section' param '$param' -> '$value'"
-                        set :$param $value
-                    }
-                }
-            }
-            next
-        }
-
-        :method expect_status_code {context r status_codes} {
-            set status [dict get $r "status"]
-            set error ""
-            if {$status ni $status_codes} {
-                if {[dict exists $r JSON]} {
-                    set jsonDict [dict get $r JSON]
-                    if {[dict exists $jsonDict error]} {
-                        set error ([dict get $jsonDict error])
-                    }
-                }
-                set msg "ms $context: expected status code $status_codes got $status $error"
-                ns_log notice $msg "\n[ns_set array [dict get $r headers]]"
-                error $msg
-            }
-            if {[dict exists $r JSON]} {
-                return [dict get $r JSON]
-            }
-        }
-
-        :method with_json_result {rvar} {
-            :upvar $rvar r
-            set content_type [ns_set iget [dict get $r headers] content-type ""]
-            if {[string match "application/json*" $content_type]} {
-                dict set r JSON  [:json_to_dict [dict get $r body]]
-            }
-            return $r
-        }
-
-        :public method pp {{-prefix ""}  dict} {
-            #
-            # Simple pretty-print function which is based on the
-            # conventions of the dict structures as returned from
-            # Microsoft Graph API. Multi-valued results are returned in a dict
-            # member named "value", which are printed indented and
-            # space separated.
-            #
-            set r ""
-            foreach {k v} $dict {
-                if {$k eq "value"} {
-                    append r $prefix $k ": " \n
-                    foreach e $v {
-                        append r [:pp -prefix "    $prefix" $e] \n
-                    }
-                } else {
-                    append r $prefix $k ": " $v \n
-                }
-            }
-            return $r
-        }
-
-        :method body {
-            {-content_type "application/json; charset=utf-8"}
-            {-vars ""}
-        } {
-            #
-            # Build a body based on the provided variable names. The
-            # values are retrieved via uplevel calls.
-            #
-
-            #
-            # Get the caller of the caller (and ignore next calling levels).
-            #
-            set callinglevel [:uplevel [current callinglevel] [list current callinglevel]]
-            #ns_log notice "CURRENT CALLING LEVEL $callinglevel " \
-                [:uplevel $callinglevel [list info vars]] \
-                [:uplevel $callinglevel [list info level 0]]
-
-            #foreach level {2 3} {
-            #    set cmd [lindex [:uplevel $level [list info level 0]] 0]
-            #    ns_log notice "$cmd check for vars '$vars' on level $level, have: [:uplevel $level [list info vars]]"
-            #    if {$cmd ne ":request"} break
-            #}
-
-            if {[string match "application/json*" $content_type]} {
-                #
-                # Convert var bindings to a JSON structure. This supports
-                # an interface somewhat similar to export_vars but
-                # supports currently as import just a list of variable
-                # names with a suffix of either "array" (when value is a
-                # list) or "triples" (for processing a triple list as
-                # returned by e.g. mongo::json::parse).
-                #
-                return [:typed_list_to_json [concat {*}[lmap p $vars {
-                    if {[regexp {^(.*):([a-z]+)(,[a-z]+)?$} $p . prefix suffix type]} {
-                        set type [expr {$type eq "" ? "string" : [string range $type 1 end]}]
-                        if {$suffix eq "array"} {
-                            set values [:uplevel $callinglevel [list set $prefix]]
-                            set result {}; set c 0
-                            foreach v $values {
-                                lappend result [list [incr c] $type $v]
-                            }
-                            list $prefix array [concat {*}$result]
-                        } else {
-                            list $prefix $suffix [:uplevel $callinglevel [list set $prefix]]
-                        }
-                    } else {
-                        if {![:uplevel $callinglevel [list info exists $p]]} continue
-                        list $p string [:uplevel $callinglevel [list set $p]]
-                    }
-                }]]]
-            } else {
-                return [:uplevel $callinglevel [list export_vars $vars]]
-            }
-        }
-
-        :method request {
-            {-method:required}
-            {-content_type "application/json; charset=utf-8"}
-            {-token}
-            {-vars ""}
-            {-url:required}
-        } {
-            set tokenArgs [expr { [info exists token]
-                                  ? [list "Authorization" "Bearer $token"]
-                                  : {} }]
-            if {$vars ne "" || $method eq "POST"} {
-                set body [:body -content_type $content_type -vars $vars]
-                set r [ns_http run \
-                           -method $method \
-                           -headers [ns_set create headers {*}$tokenArgs "Content-type" $content_type] \
-                           -expire 30 \
-                           -body $body \
-                           $url]
-            } else {
-                set r [ns_http run \
-                           -method $method \
-                           -headers [ns_set create headers {*}$tokenArgs] \
-                           -expire 10 \
-                           $url]
-            }
-            set content_type [ns_set iget [dict get $r headers] content-type ""]
-            ns_log notice "[self] $method $url\n" \
-                [expr {[info exists body] ? "$body\n" : ""}] \
-                "Answer: $r ($content_type)"
-            return [:with_json_result r]
-        }
+        :property {version v1.0}    ;# currently just used in URL generation
 
         :public method token {
             {-grant_type "client_credentials"}
@@ -257,8 +91,12 @@ namespace eval ::ms {
             -requested_token_use
         } {
             #
-            # Get bearer token (access token) from the /oauth2/v2.0/token enpoint,
+            # Get bearer token (access token) from the /oauth2/v2.0/token endpoint,
             # with timestamp validation (based on "expires_in") result.
+            #
+            # Obtaining the access token is MsGraph
+            # dependent. Probably, some of this can be factored out
+            # later to one of the super classes.
             #
             # @param scope with prefconfigured permissions: use "https://graph.microsoft.com/.default"
             #
@@ -270,7 +108,7 @@ namespace eval ::ms {
             # with double ns_cache calls, so we leave this for the time
             # being.
             #
-            if {[nsv_get msazure [self] tokenDict] && $tokenDict ne ""} {
+            if {[nsv_get app_token [self] tokenDict] && $tokenDict ne ""} {
                 set access_token [dict get $tokenDict access_token]
                 set expiration_date [dict get $tokenDict expiration_date]
                 #
@@ -302,12 +140,12 @@ namespace eval ::ms {
 
             ns_log notice "/token POST Request Answer: $r"
             if {[dict get $r status] != "200"} {
-                error "ms authentication request returned status code [dict get $r status]"
+                error "[self] authentication request returned status code [dict get $r status]"
             }
 
             set jsonDict [dict get $r JSON]
             if {![dict exists $jsonDict access_token]} {
-                error "ms authentication must return access_token. Got: [dict keys $jsonDict]"
+                error "[self] authentication must return access_token. Got: [dict keys $jsonDict]"
             }
 
             if {[dict exists $jsonDict expires_in]} {
@@ -324,73 +162,16 @@ namespace eval ::ms {
             #
             set access_token [dict get $jsonDict access_token]
             set expiration_date [clock add [clock seconds] $expire_secs seconds]
-            nsv_set msazure [self] [list \
+            nsv_set app_token [self] [list \
                                         access_token $access_token \
                                         expiration_date $expiration_date]
             return $access_token
         }
 
-        :method json_to_dict {json_string} {
-            #
-            # Convert JSON to a Tcl dict and add it to the result
-            # dict.
-            #
-            package require json
-            return [::json::json2dict $json_string]
-        }
 
-        :method typed_value_to_json {type value} {
-            switch $type {
-                "string" {
-                    set escaped [string map [list \n \\n \t \\t \" \\\" \\ \\\\] $value]
-                    return [subst {"$escaped"}]
-                }
-                "array" {
-                    set r {}
-                    foreach {pos t v} $value {
-                        lappend r [:typed_value_to_json $t $v]
-                    }
-                    return "\[[join $r ,]\]"
-                }
-                "document" {
-                    set r {}
-                    foreach {name t v} $value {
-                        lappend r [subst {"$name":[:typed_value_to_json $t $v]}]
-                    }
-                    return "{[join $r ,]}"
-                }
-            }
-            return $value
-        }
-
-        :method typed_list_to_json {triples} {
-            #
-            # Convert a list of triples (name, type, value) into json/bson
-            # notation. In case, there is mongodb support, use it,
-            # otherwise use a simple approximation.
-            #
-            # The "type" element of the triple is used to determine value
-            # formatting, such as e.g. quoting.
-            #
-            if {[info commands ::mongo::json::generate] ne ""} {
-                ns_log notice "typed_list_to_json (mongo): $triples"
-                return [::mongo::json::generate $triples]
-            } else {
-                ns_log notice "typed_list_to_json (tcl): $triples"
-                set result ""
-                foreach {name type value} $triples {
-                    lappend result [subst {"$name":[:typed_value_to_json $type $value]}]
-                }
-                return "{[join $result ,]}"
-            }
-        }
-        # ... :typed_list_to_json {
-        #    mailnickname string gn
-        #    active boolean true
-        #    name string "Gustaf Neumann"
-        #    x int 1
-        # }
-
+        #
+        # Parameter encoding conventions for MSGraph
+        #
         :method encode_query {param value} {
             return \$$param=[ad_urlencode_query $value]
         }
@@ -405,20 +186,6 @@ namespace eval ::ms {
                 :encode_query $var $value
             }] &
         }
-    }
-
-    ###########################################################
-    #
-    # ms::Graph class:
-    #
-    # Support for the Microsoft Graph API
-    # https://docs.microsoft.com/en-us/graph/use-the-api
-    #
-    ###########################################################
-
-    nx::Class create Graph -superclasses Base {
-
-        :property {version v1.0}    ;# currently just used in URL generation
 
         :method request {
             {-method:required}
@@ -506,7 +273,7 @@ namespace eval ::ms {
 
             set r [:request -method GET -token [:token] \
                        -url /groups/$group_id?[:params {select}]]
-            return [:expect_status_code "group get $group_id" $r 200]
+            return [:expect_status_code $r 200]
         }
 
         :public method "group list" {
@@ -537,7 +304,7 @@ namespace eval ::ms {
 
             set r [:request -method GET -token [:token] \
                        -url https://graph.microsoft.com/beta/groups?[:params {select filter}]]
-            return [:expect_status_code "group list" $r 200]
+            return [:expect_status_code $r 200]
         }
 
         :public method "group deleted" {
@@ -569,7 +336,7 @@ namespace eval ::ms {
             set r [:request -method GET -token [:token] \
                        -url /directory/deletedItems/microsoft.graph.group?[:params {
                            count expand filter orderby search select top}]]
-            return [:expect_status_code "group deleted" $r 200]
+            return [:expect_status_code $r 200]
         }
 
         #----------------------------------------------------------
@@ -594,7 +361,7 @@ namespace eval ::ms {
             set r [:request -method PATCH -token [:token] \
                        -vars {members@odata.bind:array} \
                        -url /groups/${group_id}]
-            return [:expect_status_code "group member add $group_id $principals" $r 204]
+            return [:expect_status_code $r 204]
         }
 
         :public method "group memberof" {
@@ -617,7 +384,7 @@ namespace eval ::ms {
             set r [:request -method GET -token [:token] \
                        -url /groups/${group_id}/memberOf?[:params {
                            count filter orderby search}]]
-            return [:expect_status_code "group memberof $group_id" $r 200]
+            return [:expect_status_code $r 200]
         }
 
         :public method "group member list" {
@@ -630,7 +397,7 @@ namespace eval ::ms {
             #
             set r [:request -method GET -token [:token] \
                        -url /groups/${group_id}/members]
-            return [:expect_status_code "group member list $group_id" $r 200]
+            return [:expect_status_code $r 200]
         }
 
         :public method "group member remove" {
@@ -644,7 +411,7 @@ namespace eval ::ms {
             #
             set r [:request -method DELETE -token [:token] \
                        -url /groups/${group_id}/members/${principal}/\$ref]
-            return [:expect_status_code "group member remove $group_id $principal" $r 204]
+            return [:expect_status_code $r 204]
         }
 
         #----------------------------------------------------------
@@ -664,7 +431,7 @@ namespace eval ::ms {
             set r [:request -method POST -token [:token] \
                        -vars {@odata.id} \
                        -url /groups/${group_id}/owners/\$ref]
-            return [:expect_status_code "group owner add $group_id $principal" $r 204]
+            return [:expect_status_code $r 204]
         }
 
         :public method "group owner list" {
@@ -677,7 +444,7 @@ namespace eval ::ms {
             #
             set r [:request -method GET -token [:token] \
                        -url /groups/${group_id}/owners]
-            return [:expect_status_code "group owner list $group_id" $r 200]
+            return [:expect_status_code $r 200]
         }
 
         :public method "group owner remove" {
@@ -691,7 +458,7 @@ namespace eval ::ms {
             #
             set r [:request -method DELETE -token [:token] \
                        -url /groups/${group_id}/owners/${user_id}/\$ref]
-            return [:expect_status_code "group owner remove $group_id $user_id" $r 204]
+            return [:expect_status_code $r 204]
         }
 
         ###########################################################
@@ -792,7 +559,7 @@ namespace eval ::ms {
             #
             set r [:request -method DELETE -token [:token] \
                        -url /groups/$team_id]
-            return [:expect_status_code "team delete $team_id" $r 204]
+            return [:expect_status_code $r 204]
         }
 
         :public method "team get" {
@@ -816,7 +583,7 @@ namespace eval ::ms {
 
             set r [:request -method GET -token [:token] \
                        -url /teams/$team_id?[:params {expand select}]]
-            return [:expect_status_code "team get $team_id" $r 200]
+            return [:expect_status_code $r 200]
         }
 
         :public method "team unarchive" {
@@ -854,7 +621,7 @@ namespace eval ::ms {
             set r [:request -method POST -token [:token] \
                        -vars {@odata.type roles:array user@odata.bind} \
                        -url https://graph.microsoft.com/${:version}/teams/${team_id}/members]
-            return [:expect_status_code "team member add $team_id $principal" $r 201]
+            return [:expect_status_code $r 201]
         }
 
         :public method "team member list" {
@@ -873,7 +640,7 @@ namespace eval ::ms {
             #
             set r [:request -method GET -token [:token] \
                        -url /teams/${team_id}/members?[:params {select filter}]]
-            return [:expect_status_code "team member list $team_id" $r 200]
+            return [:expect_status_code $r 200]
         }
 
         :public method "team member remove" {
@@ -887,7 +654,7 @@ namespace eval ::ms {
             #
             set r [:request -method DELETE -token [:token] \
                        -url /teams/${team_id}/members/${principal}]
-            return [:expect_status_code "team member remove $team_id $principal" $r 204]
+            return [:expect_status_code $r 204]
         }
 
         :public method "team channel list" {
@@ -907,7 +674,7 @@ namespace eval ::ms {
 
             set r [:request -method GET -token [:token] \
                        -url /teams/${team_id}/channels?[:params {filter select expand}]]
-            return [:expect_status_code "team channel list $team_id" $r 200]
+            return [:expect_status_code $r 200]
         }
 
 
@@ -927,7 +694,7 @@ namespace eval ::ms {
 
             set r [:request -method GET -token [:token] \
                        -url /applications/${application_id}?[:params {select}]]
-            return [:expect_status_code "application get ${application_id}" $r 200]
+            return [:expect_status_code $r 200]
         }
 
         :public method "application list" {
@@ -955,7 +722,7 @@ namespace eval ::ms {
             set r [:request -method GET -token [:token] \
                        -url /applications?[:params {
                            count expand filter orderby search select top}]]
-            return [:expect_status_code "application list" $r 200]
+            return [:expect_status_code $r 200]
         }
 
         ###########################################################
@@ -972,7 +739,7 @@ namespace eval ::ms {
             #
             set r [:request -method GET -token [:token] \
                        -url /chats/$chat_id]
-            return [:expect_status_code "chat get $chat_id" $r 200]
+            return [:expect_status_code $r 200]
         }
 
         :public method "chat messages" {
@@ -988,7 +755,7 @@ namespace eval ::ms {
 
             set r [:request -method GET -token [:token] \
                        -url /chats/$chat_id/messages?[:params {top}]]
-            return [:expect_status_code "chat messages $chat_id" $r 200]
+            return [:expect_status_code $r 200]
         }
 
         ###########################################################
@@ -1008,7 +775,7 @@ namespace eval ::ms {
             #
             set r [:request -method GET -token [:token] \
                        -url /users/$principal?[:params {select}]]
-            return [:expect_status_code "user get $principal" $r 200]
+            return [:expect_status_code $r 200]
         }
 
         :public method "user list" {
@@ -1025,7 +792,7 @@ namespace eval ::ms {
             #
             set r [:request -method GET -token [:token] \
                        -url /users?[:params {select filter}]]
-            return [:expect_status_code "user list -select $select -filter $filter" $r 200]
+            return [:expect_status_code $r 200]
         }
 
         :public method "user me" {
@@ -1047,7 +814,7 @@ namespace eval ::ms {
             }
             set r [:request -method GET -token $token \
                        -url /me?[:params {select}]]
-            return [:expect_status_code "user me" $r 200]
+            return [:expect_status_code $r 200]
         }
 
         :public method "user memberof" {
@@ -1071,12 +838,13 @@ namespace eval ::ms {
             set r [:request -method GET -token [:token] \
                        -url /users/${principal}/memberOf?[:params {
                            count filter orderby search}]]
-            return [:expect_status_code "user memberof $principal" $r 200]
+            return [:expect_status_code $r 200]
         }
 
     }
 }
 
+::xo::library source_dependent
 #
 # Local variables:
 #    mode: tcl
