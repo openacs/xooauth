@@ -93,6 +93,24 @@ namespace eval ::ms {
 
         :property {version v1.0}    ;# currently just used in URL generation
 
+        :public object method run_donecallback {
+            serialized_app_obj
+            location
+            callback
+        } {
+            #
+            # Helper method for running callbacks. In general, we
+            # cannot rely that the interface object (typically
+            # ms::app) exists also in the job-queue, where atjobs are
+            # executed. Therefore, the class method receives everything
+            # to reconstuct the used interface object.
+            #
+            set name [eval $serialized_app_obj]
+            #ns_log notice "serialized_app_obj $serialized_app_obj ===> $name"
+            $name run_donecallback $location $callback
+        }
+
+
         :public method token {
             {-grant_type "client_credentials"}
             {-scope "https://graph.microsoft.com/.default"}
@@ -279,15 +297,20 @@ namespace eval ::ms {
             }
         }
 
-        :public method check_async_operation {location} {
+        :method check_async_operation {location} {
+            #
+            # For async operations, the MSGraph API returns the
+            # location to be checked for finishing via the "location"
+            # reply header field. Perform the checking only when the
+            # location has the expected structure.
+            #
             #ns_log notice "check_async_operation $location"
 
             if {![regexp {^/teams\('([^']+)'\)/operations\('([^']+)'\)$} $location . id opId]} {
                 error "teams check_async_operation '$location' is not in the form of /teams({id})/operations({opId})"
             }
 
-            set r [:request -method GET -token [:token] \
-                       -url ${location}]
+            set r [:request -method GET -token [:token] -url ${location}]
 
             #ns_log notice "/checkAsync GET Answer: $r"
             set status [dict get $r status]
@@ -297,14 +320,48 @@ namespace eval ::ms {
                 return [dict get $jsonDict status]
             } elseif {$status == 404} {
                 #
-                # Well, it might be too early...
+                # MSGraph returns sometimes 404 even for valid
+                # operation IDs. Probably, the call was to early for
+                # the cloud....
                 #
                 return NotFound
             }
             return $r
         }
 
-        :method async_operation_status {{-wait:switch} r} {
+        :public method schedule_donecallback {secs location callback} {
+            #
+            # Add an atjob for the for the done callback. The job is
+            # persisted, such that even for long running operations
+            # and server restarts, the operation will continue after
+            # the server restart.
+            #
+            #ns_log notice "--- schedule_donecallback $secs $location $callback"
+            set j [::xowf::atjob new \
+                       -url [xo::cc url] \
+                       -party_id [xo::cc user_id] \
+                       -cmd $callback \
+                       -time [clock format [expr {[clock seconds] + $secs}]]]
+            $j persist
+        }
+
+        :public method run_donecallback {location callback} {
+            #
+            # Method to be finally executes the donecallback. First,
+            # we have to check whether the async operation has already
+            # finished. If this operation is still in progress,
+            # reschedule this operation.
+            #
+            #ns_log notice "RUNNING donecallback <$callback>"
+            set operationStatus [:check_async_operation $location]
+            if {$operationStatus eq "inProgress"} {
+                :schedule_donecallback 60 $location $callback
+            } else {
+                {*}$callback [expr {$operationStatus eq "succeeded"}] $operationStatus
+            }
+        }
+
+        :method async_operation_status {{-wait:switch} {-donecallback ""} r} {
             #set context "[:uplevel {current methodpath}] [:uplevel {current args}]"
             :uplevel [list :expect_status_code $r 202]
             set location [ns_set iget [dict get $r headers] location]
@@ -333,6 +390,15 @@ namespace eval ::ms {
                             break
                         }
                     }
+            }
+            if {$donecallback ne ""} {
+                #
+                # Since we call the callback and its environment via
+                # "eval", we have to protect the arguments with "list".
+                #
+                :schedule_donecallback 60 $location \
+                    [list eval [current class] run_donecallback \
+                         [list [:serialize]] [list $location] [list $donecallback]]
             }
             return $operationStatus
         }
@@ -580,6 +646,7 @@ namespace eval ::ms {
         :public method "team archive" {
             team_id
             {-shouldSetSpoSiteReadOnlyForMembers ""}
+            {-donecallback ""}
             {-wait:switch false}
         } {
             # Archive the specified team. When a team is archived,
@@ -598,9 +665,16 @@ namespace eval ::ms {
             # omitting the body altogether will result in this step
             # being skipped.
             #
+            # @param wait when specified, perform up to 10 requests checking the status of the async command
+            # @param donecallback cmd to be executed when the async
+            #        command succeeded or failed. One additional argument is
+            #        passed to the callback indicating the result status.
+            #
+
+            #
             set r [:request -method POST -token [:token] \
                        -url /teams/$team_id/archive?[:params {shouldSetSpoSiteReadOnlyForMembers}]]
-            return [:async_operation_status -wait=$wait $r]
+            return [:async_operation_status -wait=$wait -donecallback $donecallback $r]
         }
 
         :public method "team create" {
@@ -608,6 +682,7 @@ namespace eval ::ms {
             -displayName:required
             -visibility
             -owner:required
+            {-donecallback ""}
             {-wait:switch false}
         } {
             #
@@ -615,6 +690,11 @@ namespace eval ::ms {
             # creating a team in an application context.
             #
             # Details: https://docs.microsoft.com/en-us/graph/api/team-post
+            #
+            # @param wait when specified, perform up to 10 requests checking the status of the async command
+            # @param donecallback cmd to be executed when the async
+            #        command succeeded or failed. One additional argument is
+            #        passed to the callback indicating the result status.
             #
             set template@odata.bind "https://graph.microsoft.com/v1.0/teamsTemplates('standard')"
             set members [subst {{
@@ -625,7 +705,7 @@ namespace eval ::ms {
             set r [:request -method POST -token [:token] \
                        -vars {template@odata.bind description displayName visibility members:array,document} \
                        -url /teams]
-            return [:async_operation_status -wait=$wait $r]
+            return [:async_operation_status -wait=$wait -donecallback $donecallback $r]
         }
 
         :public method "team clone" {
@@ -636,6 +716,7 @@ namespace eval ::ms {
             -mailNickname
             -partsToClone:required
             -visibility
+            {-donecallback ""}
             {-wait:switch false}
         } {
             #
@@ -646,6 +727,10 @@ namespace eval ::ms {
             #
             # @param team_id of the team to be cloned (might be a template)
             # @param partsToClone specify e.g. as "apps,tabs,settings,channels"
+            # @param wait when specified, perform up to 10 requests checking the status of the async command
+            # @param donecallback cmd to be executed when the async
+            #        command succeeded or failed. One additional argument is
+            #        passed to the callback indicating the result status.
             #
             # see https://docs.microsoft.com/en-us/graph/api/team-clone
             #
@@ -659,7 +744,7 @@ namespace eval ::ms {
                            visibility
                        } \
                        -url /teams/${team_id}/clone]
-            return [:async_operation_status -wait=$wait $r]
+            return [:async_operation_status -wait=$wait -donecallback $donecallback $r]
         }
 
         :public method "team delete" {
@@ -703,6 +788,7 @@ namespace eval ::ms {
 
         :public method "team unarchive" {
             team_id
+            {-donecallback ""}
             {-wait:switch false}
         } {
             # Restore an archived team. This restores users' ability to
@@ -711,9 +797,14 @@ namespace eval ::ms {
             #
             # Details: https://docs.microsoft.com/en-us/graph/api/team-unarchive
             #
+            # @param wait when specified, perform up to 10 requests checking the status of the async command
+            # @param donecallback cmd to be executed when the async
+            #        command succeeded or failed. One additional argument is
+            #        passed to the callback indicating the result status.
+            #
             set r [:request -method POST -token [:token] \
                        -url /teams/$team_id/unarchive]
-            return [:async_operation_status -wait=$wait $r]
+            return [:async_operation_status -wait=$wait -donecallback $donecallback $r]
         }
 
         #----------------------------------------------------------
