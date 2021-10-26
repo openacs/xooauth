@@ -1,13 +1,22 @@
 ::xo::library doc {
     Support for the Microsoft Graph API
 
-    To call Microsoft Graph, one has to create an "app", which must
-    acquire an access token from the Microsoft identity platform. The
-    access token contains information about your app and the permissions
-    it has for the resources and APIs available through Microsoft
-    Graph. To get an access token, your app must be registered with the
-    Microsoft identity platform and be authorized by either a user or an
-    administrator for access to the Microsoft Graph resources it needs.
+    These interface classes support conversion from/to JavaScript and
+    to the urlencoded calling patterns on the fly, just by specifying
+    the Tcl variable names. Furthermore, the interface support
+    pagination (some API calls return per default just a partial
+    number of results (in MSGraph just the first 100 results), such
+    that multiple REST calls have to be issued to get the full result
+    set.
+        
+    To use this Microsoft Graph API, one has to create an "app", which
+    must acquire an access token from the Microsoft identity
+    platform. The access token contains information about your app and
+    the permissions it has for the resources and APIs available
+    through Microsoft Graph. To get an access token, your app must be
+    registered with the Microsoft identity platform and be authorized
+    by either a user or an administrator for access to the Microsoft
+    Graph resources it needs.
 
     https://docs.microsoft.com/en-us/graph/auth/auth-concepts
     https://docs.microsoft.com/en-us/graph/auth-register-app-v2
@@ -187,6 +196,61 @@ namespace eval ::ms {
             }] &
         }
 
+        :method paginated_result_list {-max_entries r expected_status_code} {
+            #
+            # By default, MSGraph returns for a query just the first 100
+            # results ("pagination"). To obtain more results, it is
+            # necessary to issue multiple requests. If "max_entries" is
+            # specified, the interface tries to get the requested
+            # number of entries. If there are less entries available,
+            # just these are returned.
+            #
+            set resultDict [:expect_status_code $r $expected_status_code]
+            set resultList {}
+
+            if {$max_entries ne ""} {
+                while {1} {
+                    #
+                    # Handle pagination in Microsoft Graph. Since the
+                    # list is returned in the JSON element "value", we
+                    # have to extract these values and update it later
+                    # with the result of potentially multiple
+                    # requests.
+                    # Details: https://docs.microsoft.com/en-us/graph/paging
+                    #
+                    set partialResultList ""
+                    set nextLink ""
+                    if {[dict exists $r JSON]} {
+                        set JSON [dict get $r JSON]
+                        if {[dict exists $JSON value]} {
+                            set partialResultList [dict get $JSON value]
+                        }
+                        if {[dict exists $JSON @odata.nextLink]} {
+                            set nextLink [dict get $JSON @odata.nextLink]
+                        }
+                    }
+
+                    lappend resultList {*}$partialResultList
+
+                    set got [llength $resultList]
+                    ns_log notice "[self] paginated_result_list: got $got max_entries $max_entries"
+                    if {$got >= $max_entries} {
+                        set resultList [lrange $resultList 0 $max_entries-1]
+                        break
+                    }
+                    if {$nextLink ne ""} {
+                        set r [:request -method GET -token [:token] -url $nextLink]
+                        set resultDict [:expect_status_code $r 200]
+                    } else {
+                        #ns_log notice "=== No next link"
+                        break
+                    }
+                }
+                dict set resultDict value $resultList
+            }
+            return $resultDict
+        }
+
         :method request {
             {-method:required}
             {-content_type "application/json; charset=utf-8"}
@@ -269,7 +333,7 @@ namespace eval ::ms {
             #
             # Details: https://docs.microsoft.com/en-us/graph/api/group-get
             #
-            # @param select attributes, e.g. displayName,mail,visibility
+            # @param select return selected attributes, e.g. displayName,mail,visibility
 
             set r [:request -method GET -token [:token] \
                        -url /groups/$group_id?[:params {select}]]
@@ -277,8 +341,14 @@ namespace eval ::ms {
         }
 
         :public method "group list" {
-            {-select id,displayName,userPrincipalName}
+            {-count ""}
+            {-expand ""}
             {-filter ""}
+            {-orderby ""}
+            {-search ""}
+            {-select id,displayName,userPrincipalName}
+            {-max_entries ""}
+            {-top:integer,0..1 ""}
         } {
             #
             # To get a list of all groups in the organization that
@@ -294,8 +364,14 @@ namespace eval ::ms {
             #    https://docs.microsoft.com/graph/teams-list-all-teams
             #    https://docs.microsoft.com/en-us/graph/query-parameters#filter-parameter
             #
-            # @param select attributes, e.g. id,displayName,userPrincipalName
+            # @param count boolean, retrieves the total count of matching resources
+            # @param expand retrieve related information via navigation property, e.g. members
             # @param filter retrieve a filtered subset of the tuples
+            # @param orderby order tuples by some attribute
+            # @param search returns results based on search criteria.
+            # @param select return selected attributes, e.g. id,displayName,userPrincipalName
+            # @param max_entries retrieve this desired number of tuples (potentially multiple API calls)
+            # @param top return up this number of tuples per request (page size)
 
             # set filter "startsWith(displayName,'Information Systems') and resourceProvisioningOptions/Any(x:x eq 'Team')"
             # "contains()" seems not supported
@@ -303,8 +379,9 @@ namespace eval ::ms {
             # set select {$select=id,displayName,resourceProvisioningOptions}
 
             set r [:request -method GET -token [:token] \
-                       -url https://graph.microsoft.com/beta/groups?[:params {select filter}]]
-            return [:expect_status_code $r 200]
+                       -url https://graph.microsoft.com/beta/groups?[:params {
+                           count expand select filter orderby search}]]
+            return [:paginated_result_list -max_entries $max_entries $r 200]
         }
 
         :public method "group deleted" {
@@ -329,7 +406,7 @@ namespace eval ::ms {
             # @param filter retrieve a filtered subset of the tuples
             # @param orderby order tuples by some attribute
             # @param search returns results based on search criteria.
-            # @param select attributes, e.g. id,displayName,userPrincipalName
+            # @param select return selected attributes, e.g. id,displayName,userPrincipalName
             # @param top sets the page size of results
 
             # set filter "startsWith(displayName,'Information Systems') and resourceProvisioningOptions/Any(x:x eq 'Team')"
@@ -389,15 +466,31 @@ namespace eval ::ms {
 
         :public method "group member list" {
             group_id
+            {-count ""}
+            {-filter ""}
+            {-search ""}
+            {-max_entries ""}
+            {-top:integer,0..1 ""}
+
         } {
             #
-            # Get the properties and relationships of a group object.
+            # Get a list of the group's direct members. A group can
+            # have users, organizational contacts, devices, service
+            # principals and other groups as members. Currently
+            # service principals are not listed as group members due
+            # to staged roll-out of service principals on Graph V1.0
+            # endpoint.
             #
             # Details: https://docs.microsoft.com/en-us/graph/api/group-list-members
             #
+            # @param count boolean, retrieves the total count of matching resources
+            # @param filter retrieve a filtered subset of the tuples
+            # @param search returns results based on search criteria.
+            # @param top sets the page size of results
+            # @param max_entries retrieve this desired number of tuples (potentially multiple API calls)
             set r [:request -method GET -token [:token] \
                        -url /groups/${group_id}/members]
-            return [:expect_status_code $r 200]
+            return [:paginated_result_list -max_entries $max_entries $r 200]
         }
 
         :public method "group member remove" {
@@ -690,7 +783,7 @@ namespace eval ::ms {
             #
             # Details: https://docs.microsoft.com/graph/api/application-list
             #
-            # @param select attributes, e.g. id,appId,keyCredentials
+            # @param select return selected attributes, e.g. id,appId,keyCredentials
 
             set r [:request -method GET -token [:token] \
                        -url /applications/${application_id}?[:params {select}]]
@@ -716,7 +809,7 @@ namespace eval ::ms {
             # @param filter retrieve a filtered subset of the tuples
             # @param orderby order tuples by some attribute
             # @param search returns results based on search criteria.
-            # @param select attributes, e.g. id,appId,keyCredentials
+            # @param select return selected attributes, e.g. id,appId,keyCredentials
             # @param top sets the page size of results
 
             set r [:request -method GET -token [:token] \
@@ -771,7 +864,7 @@ namespace eval ::ms {
             #
             # Details: https://docs.microsoft.com/en-us/graph/api/user-get
             #
-            # @param select attributes, e.g. displayName,givenName,postalCode
+            # @param select return selected attributes, e.g. displayName,givenName,postalCode
             #
             set r [:request -method GET -token [:token] \
                        -url /users/$principal?[:params {select}]]
@@ -781,18 +874,25 @@ namespace eval ::ms {
         :public method "user list" {
             {-select "displayName,userPrincipalName,id"}
             {-filter ""}
+            {-max_entries ""}
+            {-top 100}
         } {
             #
-            # Retrieve the properties and relationships of user object.
+            # Retrieve the properties and relationships of user
+            # object.  For the users collection the default page size
+            # is 100, the max page size is 999, if you try $top=1000
+            # you'll get an error for invalid page size.
             #
             # Details: https://docs.microsoft.com/en-us/graph/api/user-list
             #
-            # @param select attributes, e.g. displayName,givenName,postalCode
+            # @param select return selected attributes, e.g. displayName,givenName,postalCode
             # @param filter restrict answers to a subset, e.g. "startsWith(displayName,'Neumann')"
+            # @param max_entries retrieve this desired number of tuples (potentially multiple API calls)
+            # @param top return up this number of tuples per request (page size)
             #
             set r [:request -method GET -token [:token] \
-                       -url /users?[:params {select filter}]]
-            return [:expect_status_code $r 200]
+                       -url /users?[:params {select filter top}]]
+            return [:paginated_result_list -max_entries $max_entries $r 200]
         }
 
         :public method "user me" {
@@ -807,7 +907,7 @@ namespace eval ::ms {
             #
             # Details: https://docs.microsoft.com/en-us/graph/api/user-get
             #
-            # @param select attributes, e.g. displayName,givenName,postalCode
+            # @param select return selected attributes, e.g. displayName,givenName,postalCode
             #
             if {$token eq ""} {
                 set token [:token]
