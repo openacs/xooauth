@@ -9,9 +9,10 @@
     <implements-subsite-p>f</implements-subsite-p>
     <inherit-templates-p>f</inherit-templates-p>
 
-    <version name="0.3d" url="http://openacs.org/repository/download/apm/xooauth-0.3d.apm">
+    <version name="0.4d" url="http://openacs.org/repository/download/apm/xooauth-0.4d.apm">
         <owner url="mailto:michael.aram@km.co.at">Michael Aram</owner>
-        <summary>XOTcl based OAuth implementation for OpenACS</summary>
+        <summary>XOTcl based OAuth implementation and OAuth based REST
+        interfaces for OpenACS</summary>
         <vendor url="https://km.co.at">KM</vendor>
         <license>BSD-Style</license>
 
@@ -22,13 +23,14 @@
         Probably, just the core part is ready for production use,
         the other functions are currently deactivated.
 
-        This component was developed by Knowledge Markets
+        This component was developed originally by Knowledge Markets
         https://km.at/
         </description>
         <maturity>0</maturity>
 
-        <provides url="xooauth" version="0.3d"/>
+        <provides url="xooauth" version="0.4d"/>
         <requires url="xotcl-core" version="5.10.0"/>
+        <requires url="xowf" version="5.10.1d4"/>
 
         <callbacks>
         </callbacks>
