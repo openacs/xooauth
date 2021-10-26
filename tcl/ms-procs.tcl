@@ -8,7 +8,7 @@
     number of results (in MSGraph just the first 100 results), such
     that multiple REST calls have to be issued to get the full result
     set.
-        
+
     To use this Microsoft Graph API, one has to create an "app", which
     must acquire an access token from the Microsoft identity
     platform. The access token contains information about your app and
@@ -280,7 +280,7 @@ namespace eval ::ms {
         }
 
         :public method check_async_operation {location} {
-            ns_log notice "check_async_operation $location"
+            #ns_log notice "check_async_operation $location"
 
             if {![regexp {^/teams\('([^']+)'\)/operations\('([^']+)'\)$} $location . id opId]} {
                 error "teams check_async_operation '$location' is not in the form of /teams({id})/operations({opId})"
@@ -289,7 +289,7 @@ namespace eval ::ms {
             set r [:request -method GET -token [:token] \
                        -url ${location}]
 
-            ns_log notice "/checkAsync GET Answer: $r"
+            #ns_log notice "/checkAsync GET Answer: $r"
             set status [dict get $r status]
             if {$status == 200} {
                 set jsonDict [dict get $r JSON]
@@ -297,24 +297,43 @@ namespace eval ::ms {
                 return [dict get $jsonDict status]
             } elseif {$status == 404} {
                 #
-                # well, it might be too early...
+                # Well, it might be too early...
                 #
                 return NotFound
             }
             return $r
         }
 
-        :method async_operation_status {msg r} {
-            :expect_status_code $msg $r 202
+        :method async_operation_status {{-wait:switch} r} {
+            #set context "[:uplevel {current methodpath}] [:uplevel {current args}]"
+            :uplevel [list :expect_status_code $r 202]
             set location [ns_set iget [dict get $r headers] location]
             set operationStatus [:check_async_operation $location]
-            ns_log notice "$msg async operation '$location' -> $operationStatus"
+            ns_log notice "[self] async operation '$location' -> $operationStatus"
             #
             # Since this is an async operation, it might take a while,
-            # until this is done. We could add either a "wait" option
-            # (making this just usable in the background) or some
-            # background checking with a callback when finished.
+            # until "the cloud" has finished. When the flag "-wait"
+            # was specified, we try up to 10 more times with a backoff
+            # time strategy. Microsoft recommends to wait >30 seconds
+            # between checks, but actually, this seems overly
+            # conservative for most application scenarios.
             #
+            # TODO: If still everything fail until then, we
+            # we should do a scheduled checking with a finish callback.
+            #
+            if {$wait && $operationStatus ne "succeeded"} {
+                foreach \
+                    i        {1  2  3  4   5   6   7   8   9  10} \
+                    interval {1s 1s 3s 5s 10s 30s 30s 30s 30s 30s} \
+                    {
+                        ns_sleep $interval
+                        set operationStatus [:check_async_operation $location]
+                        ns_log notice "[self] retry $i: operationStatus $operationStatus"
+                        if {$operationStatus eq "succeeded"} {
+                            break
+                        }
+                    }
+            }
             return $operationStatus
         }
 
@@ -561,6 +580,7 @@ namespace eval ::ms {
         :public method "team archive" {
             team_id
             {-shouldSetSpoSiteReadOnlyForMembers ""}
+            {-wait:switch false}
         } {
             # Archive the specified team. When a team is archived,
             # users can no longer send or like messages on any channel
@@ -580,7 +600,7 @@ namespace eval ::ms {
             #
             set r [:request -method POST -token [:token] \
                        -url /teams/$team_id/archive?[:params {shouldSetSpoSiteReadOnlyForMembers}]]
-            return [:async_operation_status "team archive $team_id" $r]
+            return [:async_operation_status -wait=$wait $r]
         }
 
         :public method "team create" {
@@ -588,6 +608,7 @@ namespace eval ::ms {
             -displayName:required
             -visibility
             -owner:required
+            {-wait:switch false}
         } {
             #
             # Create a new team.  A team owner must be provided when
@@ -604,7 +625,7 @@ namespace eval ::ms {
             set r [:request -method POST -token [:token] \
                        -vars {template@odata.bind description displayName visibility members:array,document} \
                        -url /teams]
-            return [:async_operation_status "team create $displayName" $r]
+            return [:async_operation_status -wait=$wait $r]
         }
 
         :public method "team clone" {
@@ -615,6 +636,7 @@ namespace eval ::ms {
             -mailNickname
             -partsToClone:required
             -visibility
+            {-wait:switch false}
         } {
             #
             # Create a copy of a team specified by "team_id". It is
@@ -637,7 +659,7 @@ namespace eval ::ms {
                            visibility
                        } \
                        -url /teams/${team_id}/clone]
-            return [:async_operation_status "team clone $displayName" $r]
+            return [:async_operation_status -wait=$wait $r]
         }
 
         :public method "team delete" {
@@ -681,6 +703,7 @@ namespace eval ::ms {
 
         :public method "team unarchive" {
             team_id
+            {-wait:switch false}
         } {
             # Restore an archived team. This restores users' ability to
             # send messages and edit the team, abiding by tenant and
@@ -690,7 +713,7 @@ namespace eval ::ms {
             #
             set r [:request -method POST -token [:token] \
                        -url /teams/$team_id/unarchive]
-            return [:async_operation_status "team unarchive $team_id" $r]
+            return [:async_operation_status -wait=$wait $r]
         }
 
         #----------------------------------------------------------
