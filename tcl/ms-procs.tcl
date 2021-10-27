@@ -1,31 +1,38 @@
 ::xo::library doc {
     Support for the Microsoft Graph API
 
-    These interface classes support conversion from/to JavaScript and
-    to the urlencoded calling patterns on the fly, just by specifying
-    the Tcl variable names. Furthermore, the interface support
-    pagination (some API calls return per default just a partial
-    number of results (in MSGraph just the first 100 results), such
-    that multiple REST calls have to be issued to get the full result
-    set.
+    These interface classes support conversion from/to JSON and to the
+    urlencoded calling patterns on the fly, just by specifying the Tcl
+    variable names mith minor annotations (somewhat similar to the
+    export_vars interface). Furthermore, the interface supports
+    pagination: some Microsoft Graph API calls return per default just
+    a partial number of results (e.g. first 100). To obtain all
+    results multiple REST calls have to be issued to get the full
+    result set. Over this interface, one can specify the desired
+    maximum number of entries.
 
-    To use this Microsoft Graph API, one has to create an "app", which
-    must acquire an access token from the Microsoft identity
-    platform. The access token contains information about your app and
-    the permissions it has for the resources and APIs available
-    through Microsoft Graph. To get an access token, your app must be
-    registered with the Microsoft identity platform and be authorized
-    by either a user or an administrator for access to the Microsoft
-    Graph resources it needs.
+    To use the Microsoft Graph API, an "app" has to be
+    registered/configured/authorized/...[1,2,3] by an administrator of
+    the organization before an access token [4] can be obtained token from
+    the Microsoft identity platform. The access token contains
+    information about your app and the permissions it has for the
+    resources and APIs available through Microsoft Graph.
 
-    https://docs.microsoft.com/en-us/graph/auth/auth-concepts
-    https://docs.microsoft.com/en-us/graph/auth-register-app-v2
+    This Interface is based on access tokens [4] and the /token endpoint
+    [1] ("Get access without a user") and assumes, one has already
+    obtained the client_id and client_secret to configure this service
+    this way.
 
     In theory, this API will allow later to switch to newer versions of
     the Graph API when newer versions (currently post 1.0) of the
     Microsoft Graph API will come out.
 
     @author Gustaf Neumann
+
+    [1] https://docs.microsoft.com/en-us/graph/auth-v2-service
+    [2] https://docs.microsoft.com/en-us/graph/auth/auth-concepts
+    [3] https://docs.microsoft.com/en-us/graph/auth-register-app-v2
+    [4] https://oauth.net/id-tokens-vs-access-tokens/
 }
 ::xo::library require rest-procs
 
