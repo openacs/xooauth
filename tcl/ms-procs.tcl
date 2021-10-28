@@ -476,7 +476,7 @@ namespace eval ::ms {
 
             set r [:request -method GET -token [:token] \
                        -url https://graph.microsoft.com/beta/groups?[:params {
-                           count expand select filter orderby search}]]
+                           count expand select filter orderby search top}]]
             return [:paginated_result_list -max_entries $max_entries $r 200]
         }
 
@@ -587,7 +587,7 @@ namespace eval ::ms {
             # @param max_entries retrieve this desired number of tuples (potentially multiple API calls)
 
             set r [:request -method GET -token [:token] \
-                       -url /groups/${group_id}/members]
+                       -url /groups/${group_id}/members]?[:params {count filter search top}]
             return [:paginated_result_list -max_entries $max_entries $r 200]
         }
 
@@ -1002,7 +1002,7 @@ namespace eval ::ms {
             {-select "displayName,userPrincipalName,id"}
             {-filter ""}
             {-max_entries ""}
-            {-top 100}
+            {-top:integer,0..1 ""}            
         } {
             #
             # Retrieve the properties and relationships of user
