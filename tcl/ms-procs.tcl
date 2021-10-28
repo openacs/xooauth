@@ -94,8 +94,9 @@ namespace eval ::ms {
         #  - tenant GUID identifier, or friendly domain name of the Azure
         #    AD, such as e.g. xxxx.onmicrosoft.com
         #
-        # see: https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-v2-protocols
+        # Details: https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-v2-protocols
         #
+
         :property {tenant}
 
         :property {version v1.0}    ;# currently just used in URL generation
@@ -112,6 +113,7 @@ namespace eval ::ms {
             # executed. Therefore, the class method receives everything
             # to reconstuct the used interface object.
             #
+
             set name [eval $serialized_app_obj]
             #ns_log notice "serialized_app_obj $serialized_app_obj ===> $name"
             $name run_donecallback $location $callback
@@ -343,6 +345,7 @@ namespace eval ::ms {
             # and server restarts, the operation will continue after
             # the server restart.
             #
+
             #ns_log notice "--- schedule_donecallback $secs $location $callback"
             set j [::xowf::atjob new \
                        -url [xo::cc url] \
@@ -359,6 +362,7 @@ namespace eval ::ms {
             # finished. If this operation is still in progress,
             # reschedule this operation.
             #
+
             #ns_log notice "RUNNING donecallback <$callback>"
             set operationStatus [:check_async_operation $location]
             if {$operationStatus eq "inProgress"} {
@@ -402,7 +406,7 @@ namespace eval ::ms {
                 #
                 # Since we call the callback and its environment via
                 # "eval", we have to protect the arguments with "list".
-                #
+                #w
                 :schedule_donecallback 60 $location \
                     [list eval [current class] run_donecallback \
                          [list [:serialize]] [list $location] [list $donecallback]]
@@ -521,6 +525,7 @@ namespace eval ::ms {
             #
             # Details: https://docs.microsoft.com/en-us/graph/api/group-post-members
             #
+
             if {[llength $principals] > 20} {
                 error "max 20 users can be added in one call"
             }
@@ -580,6 +585,7 @@ namespace eval ::ms {
             # @param search returns results based on search criteria.
             # @param top sets the page size of results
             # @param max_entries retrieve this desired number of tuples (potentially multiple API calls)
+
             set r [:request -method GET -token [:token] \
                        -url /groups/${group_id}/members]
             return [:paginated_result_list -max_entries $max_entries $r 200]
@@ -678,7 +684,6 @@ namespace eval ::ms {
             #        passed to the callback indicating the result status.
             #
 
-            #
             set r [:request -method POST -token [:token] \
                        -url /teams/$team_id/archive?[:params {shouldSetSpoSiteReadOnlyForMembers}]]
             return [:async_operation_status -wait=$wait -donecallback $donecallback $r]
@@ -703,6 +708,7 @@ namespace eval ::ms {
             #        command succeeded or failed. One additional argument is
             #        passed to the callback indicating the result status.
             #
+
             set template@odata.bind "https://graph.microsoft.com/v1.0/teamsTemplates('standard')"
             set members [subst {{
                 @odata.type string "#microsoft.graph.aadUserConversationMember"
@@ -739,8 +745,8 @@ namespace eval ::ms {
             #        command succeeded or failed. One additional argument is
             #        passed to the callback indicating the result status.
             #
-            # see https://docs.microsoft.com/en-us/graph/api/team-clone
-            #
+            # Details: https://docs.microsoft.com/en-us/graph/api/team-clone
+
             set r [:request -method POST -token [:token] \
                        -vars {
                            classification
@@ -763,7 +769,7 @@ namespace eval ::ms {
             # deleted.
             #
             # Details: https://docs.microsoft.com/en-us/graph/api/group-delete
-            #
+
             set r [:request -method DELETE -token [:token] \
                        -url /groups/$team_id]
             return [:expect_status_code $r 204]
@@ -808,7 +814,7 @@ namespace eval ::ms {
             # @param donecallback cmd to be executed when the async
             #        command succeeded or failed. One additional argument is
             #        passed to the callback indicating the result status.
-            #
+
             set r [:request -method POST -token [:token] \
                        -url /teams/$team_id/unarchive]
             return [:async_operation_status -wait=$wait -donecallback $donecallback $r]
@@ -851,9 +857,9 @@ namespace eval ::ms {
             # @param select select subset of attributes
             # @param filter restrict answers to a subset of tuples, e.g.
             #        (microsoft.graph.aadUserConversationMember/displayName eq 'Harry Johnson')
-            #
+
             set r [:request -method GET -token [:token] \
-                       -url /teams/${team_id}/members?[:params {select filter}]]
+                       -url /teams/${team_id}/members?[:params {filter select}]]
             return [:expect_status_code $r 200]
         }
 
@@ -865,7 +871,7 @@ namespace eval ::ms {
             # Remove a conversationMember from a team.
             #
             # Details: https://docs.microsoft.com/en-us/graph/api/group-delete-members
-            #
+
             set r [:request -method DELETE -token [:token] \
                        -url /teams/${team_id}/members/${principal}]
             return [:expect_status_code $r 204]
@@ -986,7 +992,7 @@ namespace eval ::ms {
             # Details: https://docs.microsoft.com/en-us/graph/api/user-get
             #
             # @param select return selected attributes, e.g. displayName,givenName,postalCode
-            #
+
             set r [:request -method GET -token [:token] \
                        -url /users/$principal?[:params {select}]]
             return [:expect_status_code $r 200]
@@ -1010,7 +1016,7 @@ namespace eval ::ms {
             # @param filter restrict answers to a subset, e.g. "startsWith(displayName,'Neumann')"
             # @param max_entries retrieve this desired number of tuples (potentially multiple API calls)
             # @param top return up this number of tuples per request (page size)
-            #
+
             set r [:request -method GET -token [:token] \
                        -url /users?[:params {select filter top}]]
             return [:paginated_result_list -max_entries $max_entries $r 200]
@@ -1055,7 +1061,7 @@ namespace eval ::ms {
             # @param filter  filter citerion
             # @param search search criterion, e.g. displayName:Video
             # @param orderby sorting criterion, e.g. displayName
-            #
+
             set r [:request -method GET -token [:token] \
                        -url /users/${principal}/memberOf?[:params {
                            count filter orderby search}]]
