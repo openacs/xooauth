@@ -406,7 +406,7 @@ namespace eval ::ms {
                 #
                 # Since we call the callback and its environment via
                 # "eval", we have to protect the arguments with "list".
-                #w
+                #
                 :schedule_donecallback 60 $location \
                     [list eval [current class] run_donecallback \
                          [list [:serialize]] [list $location] [list $donecallback]]
