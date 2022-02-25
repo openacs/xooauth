@@ -9,7 +9,7 @@
     <implements-subsite-p>f</implements-subsite-p>
     <inherit-templates-p>f</inherit-templates-p>
 
-    <version name="0.4d" url="http://openacs.org/repository/download/apm/xooauth-0.4d.apm">
+    <version name="0.4d2" url="http://openacs.org/repository/download/apm/xooauth-0.4d2.apm">
         <owner url="mailto:michael.aram@km.co.at">Michael Aram</owner>
         <summary>XOTcl based OAuth implementation and OAuth based REST
         interfaces for OpenACS</summary>
@@ -28,7 +28,8 @@
         </description>
         <maturity>0</maturity>
 
-        <provides url="xooauth" version="0.4d"/>
+        <provides url="xooauth" version="0.4d2"/>
+        <requires url="acs-tcl" version="5.10.1d11"/>        
         <requires url="xotcl-core" version="5.10.0"/>
         <requires url="xowf" version="5.10.1d4"/>
 

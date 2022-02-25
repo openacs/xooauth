@@ -66,7 +66,7 @@ namespace eval ::xo::oauth {
           content::item::delete -item_id $ci
         }
         xo::dc dml [:qn drop_table] "drop table $table_name cascade"
-        ::xo::db::sql::acs_object_type drop_type \
+        ::acs::dc call acs_object_type drop_type \
             -object_type $object_type -cascade_p t
       } fid] } {
         :msg "Error during delete:\n$fid"
