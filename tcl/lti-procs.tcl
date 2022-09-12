@@ -361,14 +361,29 @@ namespace eval ::xo {
     }
 
     nx::Class create ::xo::lti::BBB -superclass ::xo::lti::LTI {
+        #
+        # LTI Class for BigBlueButton
+        #
+        # @see https://bigbluebutton.org/
+        #
         :property {launch_presentation_document_target window}  ;# window or iframe
     }
 
     nx::Class create ::xo::lti::Jupyter -superclass ::xo::lti::LTI {
+        #
+        # LTI Class for Jupyter Notebook
+        #
+        # @see https://jupyter.org/
+        #
         :property {launch_presentation_document_target window}  ;# window or iframe
     }
 
     nx::Class create ::xo::lti::Zoom -superclass ::xo::lti::LTI {
+        #
+        # LTI Class for Zoom
+        #
+        # @see https://zoom.us/
+        #
         :property {launch_presentation_document_target iframe}  ;# window or iframe
     }
 }
