@@ -21,11 +21,15 @@
 namespace eval ::xo {}
 namespace eval ::xo::oauth {
 
-  ad_proc nonce {} {} {
+  ad_proc nonce {} {
+    @return a nonce for the current request.
+  } {
     return [ad_generate_random_string 33]
   }
 
-  ad_proc timestamp {} {} {
+  ad_proc timestamp {} {
+    @return the current epoch timestamp in seconds
+  } {
     return [clock seconds]
   }
 
