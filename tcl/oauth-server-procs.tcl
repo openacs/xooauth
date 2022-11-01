@@ -338,8 +338,8 @@ namespace eval ::xo::oauth {
     set path_query_fragment [ns_conn url]
     #my log ----$path_query_fragment
     # Strip eventual query parameters from path
-    array set "" [uri::split $path_query_fragment]
-    set path $(path)
+    set info [uri::split $path_query_fragment]
+    set path [dict get $info path]
     # uri::join also omits default ports, as required by OAuth
     set base_string_uri [uri::join scheme $scheme host $host port $port path $path]
     #my log "set base_string_uri uri::join scheme $scheme host $host port $port path $path"

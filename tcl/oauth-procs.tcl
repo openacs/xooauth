@@ -215,8 +215,12 @@ namespace eval ::xo::oauth {
     is conformant to "http://tools.ietf.org/html/rfc5849#section-3.4.1.2".
     Most importantly, it strips any query part from the URL.
   } {
-    array set "" [uri::split $uri]
-    set base_string_uri [uri::join scheme $(scheme) host $(host) port $(port) path $(path)]
+    set info [uri::split $uri]
+    set base_string_uri [uri::join \
+                             scheme [dict get $info scheme] \
+                             host [dict get $info host] \
+                             port [dict get $info port] \
+                             path [dict get $info path]]
     return $base_string_uri
   }
 
