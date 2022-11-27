@@ -111,7 +111,7 @@ namespace eval ::ms {
             # cannot rely that the interface object (typically
             # ms::app) exists also in the job-queue, where atjobs are
             # executed. Therefore, the class method receives everything
-            # to reconstuct the used interface object.
+            # to reconstruct the used interface object.
             #
 
             set name [eval $serialized_app_obj]
