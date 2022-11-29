@@ -237,6 +237,7 @@ namespace eval ::xo::oauth {
 
   Signature instproc normalize_parameters {} {
     set parameter_pair_list [:signature_parameters]
+    set encoded_parameter_pair_list {}
     foreach pair $parameter_pair_list {
       lassign $pair key value
       if {[string match "*secret" $key]} continue
