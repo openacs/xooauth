@@ -587,7 +587,7 @@ namespace eval ::ms {
             # @param max_entries retrieve this desired number of tuples (potentially multiple API calls)
 
             set r [:request -method GET -token [:token] \
-                       -url /groups/${group_id}/members]?[:params {count filter search top}]
+                       -url /groups/${group_id}/members?[:params {count filter search top}]]
             return [:paginated_result_list -max_entries $max_entries $r 200]
         }
 
@@ -726,7 +726,7 @@ namespace eval ::ms {
             -classification
             -description
             -displayName:required
-            -mailNickname
+            -mailNickname:required
             -partsToClone:required
             -visibility
             {-donecallback ""}
