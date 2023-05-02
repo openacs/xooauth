@@ -26,7 +26,9 @@ namespace eval ::xo::oauth {
   #  set :remote_server $server_metadata
   #}
 
-  Client ad_instproc client_metadata {} {} {
+  Client ad_instproc client_metadata {} {
+    Client metadata
+  } {
     set :client_metadata_id [:require_client_metadata]
     set client [::xo::db::CrClass get_instance_from_db -item_id ${:client_metadata_id}]
     return $client
@@ -61,7 +63,9 @@ namespace eval ::xo::oauth {
     return $client_metadata_id
   }
 
-  Client ad_instproc get_temp_credentials {} {} {
+  Client ad_instproc get_temp_credentials {} {
+    Get temporal credentials   
+  } {
     if {${:remote_server} eq ""} {
       error "no remote server"
     }
@@ -104,7 +108,9 @@ namespace eval ::xo::oauth {
     }
   }
 
-  Client ad_instproc callback {} {} {
+  Client ad_instproc callback {} {
+    Callback
+  } {
     set client ${:client_metadata}
     set temp_cred_identifier [:request_parameter oauth_token]
     set temporary_credentials [:get_credentials \
@@ -125,10 +131,14 @@ namespace eval ::xo::oauth {
                                -client [$client_credentials client]]
   }
 
-  Client ad_instproc authorize {} {} {
+  Client ad_instproc authorize {} {
+    Authorize
+  } {
   }
 
-  Client ad_instproc token {} {} {
+  Client ad_instproc token {} {
+    Token
+  } {
   }
 
 

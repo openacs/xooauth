@@ -400,7 +400,9 @@ namespace eval ::xo::oauth {
     #
     #
 
-    AuthenticatedRequest ad_instproc send {} {} {
+    AuthenticatedRequest ad_instproc send {} {
+      Send request
+    } {
       :initialize
       :send_request
     }
@@ -528,16 +530,15 @@ namespace eval ::xo::oauth {
       return $parameter_pair_list
     }
 
-    AuthenticatedRequest ad_instproc decode {s} {} {
-      # We cannot use urldecode, as this translates plusses to spaces.
-      #return [ns_urldecode $s]
+    AuthenticatedRequest ad_instproc decode {s} {
+      URL decode
+    } {
       return [::xo::oauth::utility urldecode $s]
     }
 
     AuthenticatedRequest ad_instproc encode {s} {
       @see http://tools.ietf.org/html/rfc5849#section-3.6
     } {
-      #return [::xowiki::utility urlencode $s]
       return [::xo::oauth::utility urlencode $s]
     }
 

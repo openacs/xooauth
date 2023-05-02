@@ -17,7 +17,9 @@ namespace eval ::xo::oauth {
 
   Class create Server
 
-  Server ad_instproc server_metadata {} {} {
+  Server ad_instproc server_metadata {} {
+    Server metadata
+  } {
     set :server_metadata_id [:require_server_metadata]
     :log "I retrieved the sm: ${:server_metadata_id}"
     set server [::xo::db::CrClass get_instance_from_db -item_id ${:server_metadata_id}]
@@ -26,6 +28,7 @@ namespace eval ::xo::oauth {
   }
 
   Server ad_instproc require_server_metadata {} {
+    Require server metadata
   } {
     set parent_id ${:folder_id}
     set server_metadata_id [ns_cache eval xotcl_object_type_cache xooauth_server_metadata-${:id} {
@@ -127,6 +130,7 @@ namespace eval ::xo::oauth {
   }
 
   Server ad_instproc token {} {
+    Token credentials
   } {
     # TODO: This URL must be only accessible via HTTPS
     if {[:verify_incoming_request]} {
@@ -159,7 +163,13 @@ namespace eval ::xo::oauth {
     return $credentials
   }
 
-  Server ad_instproc get_credentials { {-identifier} {-server ""} {-client ""} } {} {
+  Server ad_instproc get_credentials {
+    {-identifier}
+    {-server ""}
+    {-client ""}
+  } {
+    Get credentials
+  } {
     # TODO: Replace with ::xo::db-layer code
     set sql "
       SELECT DISTINCT item_id
@@ -189,6 +199,7 @@ namespace eval ::xo::oauth {
     name
     {default ""}
   } {
+    Request parameter
   } {
     set authorization_header_parameter [:authorization_header_parameter $name $default]
     #my log "AAAAAAA $name - $default - $authorization_header_parameter"
@@ -346,9 +357,9 @@ namespace eval ::xo::oauth {
     return $base_string_uri
   }
 
-  Server ad_instproc decode {s} {} {
-    # We cannot use urldecode, as this translates plusses to spaces.
-    #return [ns_urldecode $s]
+  Server ad_instproc decode {s} {
+    URL decode
+  } {
     return [::xo::oauth::utility urldecode $s]
   }
 
