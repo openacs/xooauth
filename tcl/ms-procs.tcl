@@ -42,9 +42,16 @@ namespace eval ::ms {
     # Sample configuration for Microsoft Graph API
     #
     # #
-    # # Define/override Ms parameters in section $server/ms
+    # # Define/override MS parameters in section $server/ms
     # #
-    # ns_section ns/server/$server/ms
+    #
+    # ns_section ns/server/$server/ms {
+    #     ns_param client_id     "..."
+    # }
+    #
+    # #
+    # # and/or in the section named after the interface object.
+    # #
     #
     # ns_section ns/server/$server/ms/app {
     #     #
@@ -153,7 +160,7 @@ namespace eval ::ms {
                 #
                 if {$access_token != "" && $expiration_date > [clock seconds]} {
                     #ns_log notice "---- using token and expiration_date from nsv: " \
-                    #    "$access_token / $expiration_date (vs. now: [clock seconds])"
+                                                                                    #    "$access_token / $expiration_date (vs. now: [clock seconds])"
                     return $access_token
                 }
             }
@@ -199,8 +206,8 @@ namespace eval ::ms {
             set access_token [dict get $jsonDict access_token]
             set expiration_date [clock add [clock seconds] $expire_secs seconds]
             nsv_set app_token [self] [list \
-                                        access_token $access_token \
-                                        expiration_date $expiration_date]
+                                          access_token $access_token \
+                                          expiration_date $expiration_date]
             return $access_token
         }
 
@@ -1002,7 +1009,7 @@ namespace eval ::ms {
             {-select "displayName,userPrincipalName,id"}
             {-filter ""}
             {-max_entries ""}
-            {-top:integer,0..1 ""}            
+            {-top:integer,0..1 ""}
         } {
             #
             # Retrieve the properties and relationships of user
@@ -1069,6 +1076,239 @@ namespace eval ::ms {
         }
 
     }
+
+
+    ###########################################################
+    #
+    # ms::Authorize class:
+    #
+    # Support for the Microsoft Microsoft identity platform ID
+    # tokens to login/logout via MS Azure accounts.
+    # https://learn.microsoft.com/en-us/azure/active-directory/develop/id-tokens
+    ###########################################################
+
+    nx::Class create Authorize -superclasses ::xo::REST {
+
+        :property {responder_url /oauth/azure-login-handler}
+        :property {after_successful_login_url /}
+        :property {login_failure_url /}
+
+        :property {create_not_registered_users:switch false}
+        :property {create_with_dotlrn_role ""}
+
+        :public method login_url {
+            {-prompt ""}
+        } {
+            #
+            # Returns the URL for logging in
+            #
+            # "oauth2/authorize" is defined in RFC 6749,
+            # but requests for MS id-tokens are defined here:
+            # https://learn.microsoft.com/en-us/azure/active-directory/develop/id-tokens
+            #
+            set base https://login.microsoftonline.com/common/oauth2/authorize
+            set response_type "code id_token"
+            set client_id ${:client_id}
+            set scope "openid offline_access"
+            set nonce [::xo::oauth::nonce]
+            set response_mode form_post
+            set redirect_uri "[ad_url]${:responder_url}"
+            return [export_vars -no_empty -base $base {
+                prompt response_type client_id scope nonce response_mode redirect_uri
+            }]
+        }
+
+        :public method logout_url {
+            {page ""}
+        } {
+            #
+            # Returns the URL for logging out. After the logout, azure
+            # redirects to the given page.
+            #
+            set base https://login.microsoftonline.com/common/oauth2/logout
+            set post_logout_redirect_uri [ad_url]$page
+            return [export_vars -no_empty -base $base {
+                post_logout_redirect_uri
+            }]
+        }
+
+        :method get_user_data {{required_fields {upn family_name given_name}}} {
+            #
+            # Get data from the query variables "id_token", "error"
+            # and "token".  In case of an error or incomplete data,
+            # add this information the result dict. The error codes
+            # returned by Azure are defined here:
+            # https://learn.microsoft.com/en-us/azure/active-directory/develop/reference-error-codes
+            # Extra errors for OpenACS are prefixed with "oacs-"
+            #
+            # @return return a dict containing the extracted fields
+
+            set result {}
+            lassign [split [ns_queryget id_token] .] jwt_header jwt_claims jwt_signature
+
+            if {$jwt_claims eq ""} {
+                dict set result error [ns_queryget error]
+                return $result
+            }
+
+            set claims [:json_to_dict [encoding convertfrom "utf-8" [ns_base64decode -binary -- $jwt_claims]]]
+            dict set result claims $claims
+
+            foreach field $required_fields {
+                if {![dict exists $claims $field] || [dict get $claims $field] eq ""} {
+                    set not_enough_data $field
+                    break
+                }
+            }
+            if {[info exists not_enough_data]} {
+                dict set result error oacs-not_enough_data
+            }
+            return $result
+        }
+
+        :method lookup_user_id {data} -returns integer {
+            set email [dict get $data claims upn]
+            set user_id [party::get_by_email -email [string tolower $email]]
+            if {$user_id eq ""} {
+                #
+                # Here one could do some more checks or alternative lookups
+                #
+            }
+            return [expr {$user_id eq "" ? 0 : $user_id}]
+        }
+
+        :method register_new_user {data} -returns integer {
+            #
+            # Register the user and return the user_id. In case, the
+            # registration of the new user failes, raise an exception.
+            #
+            # not tested
+            #
+            db_transaction {
+                set user_info(first_names) [dict get $data given_name]
+                set user_info(last_name) [dict get $data family_name]
+                if {![util_email_unique_p [dict get $data upn]]} {
+                    error "Email is not unique: [dict get $data upn]"
+                }
+                set user_info(email) [dict get $data upn]
+                array set creation_info [auth::create_local_account \
+                                             -authority_id [auth::authority::local] \
+                                             -username [dict get $data upn] \
+                                             -array user_info]
+                if {$creation_info(creation_status) ne "ok"} {
+                    error "Error when creating user: $creation_info(creation_status) $creation_info(element_messages)"
+                }
+                set user_id $creation_info(user_id)
+                set email [dict get $data upn]
+                #db_dml _ "INSERT INTO azure_users VALUES (:user_id)"
+                #db_dml _ "INSERT INTO azure_user_mails (user_id, email) VALUES (:user_id, :email)"
+
+                if {[apm_package_installed_p dotlrn] && ${:create_with_dotlrn_role} ne ""} {
+                    #
+                    # We have DotLRN installed, and we want to create
+                    # for this register object the new users in the
+                    # provided role. Note that one can define
+                    # different instances of this class behaving
+                    # differently.
+                    #
+                    dotlrn::user_add \
+                        -type ${:create_with_dotlrn_role} \
+                        -can_browse=1 \
+                        -id $email \
+                        -user_id $user_id
+
+                    acs_privacy::set_user_read_private_data \
+                        -user_id $user_id \
+                        -object_id [dotlrn::get_package_id] \
+                        -value 1
+                }
+            } on_error {
+                ns_log error "Azure Login (Error during user creation): $errmsg ($email)"
+                #
+                # logout the user from Azure and report an error message.
+                #
+                # For the time being the error is reported via
+                # util_user_message. We could as well define an extra
+                # error page and pass the error message and/or some
+                # error code to it.
+                #
+                error "Azure user creation failed: $errmsg"
+            }
+            return $user_id
+        }
+
+        :public method perform_login {} {
+            #
+            # Get the provided claims from the Azure response and
+            # perform an OpenACS login, when the user exists.
+            #
+            # In case the user does not exist, create it optionally (when
+            # "create_not_registered_users" is activated for this
+            # object).
+            #
+            # When the user is created, and dotlrn is installed, the
+            # new user might be added optionally as a dotlrn user with
+            # the role as specified in "create_with_dotlrn_role".
+            #
+            set data [:get_user_data]
+            if {[dict exists $data error]} {
+                ns_log warning "Azure login failed: [dict get $data error]\n$data"
+                #util_user_message -message "Azure login failed: [dict get $data error]"
+                #ad_returnredirect ${:login_failure_url}
+                #ad_script_abort
+            } else {
+                set user_id [:lookup_user_id $data]
+                if {${:create_not_registered_users}} {
+                    try {
+                        :register_new_user $data
+                    } on ok result {
+                        set user_id $result
+                    } on error {errorMsg} {
+                        dict set data error oacs-register_failed
+                        dict set data error_description $errorMsg
+                        set user_id 0
+                    }
+                }
+                dict set data user_id $user_id
+                if {$user_id != 0} {
+                    #
+                    # Still to do:
+                    # - Sync/check validity of the token vs. the validity
+                    #   of the login cookie.
+                    # - maybe set an extra cookie to perform token refresh
+                    #   from azure when the login expires.
+                    #
+                    ad_user_login $user_id
+                    #ad_returnredirect ${:after_successful_login_url}
+                    #ad_script_abort
+
+                } else {
+                    #
+                    # For the time being, just report data back to the
+                    # calling script.
+                    #
+                    dict set data error "oacs-no_such_user"
+                }
+                return $data
+            }
+        }
+
+    }
+
+    #
+    # Create in your ms_init.tcl script one or several authorizer
+    # objects like the following (using defaults):
+    #
+    #   ms::Authorize create ms::azure
+    #
+    # or e.g.
+    #
+    #   ms::Authorize create ms::azure \
+    #       -client-id ... \
+    #       -login_failure_url / \
+    #       -create_not_registered_users \
+    #       -create_with_dotlrn_role "student"
+    #
 }
 
 ::xo::library source_dependent

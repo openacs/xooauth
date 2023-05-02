@@ -37,32 +37,39 @@ namespace eval ::xo {
             # takes into account the configure parameter of subclasses
             # of xo::REST. The parameters are looked up on a path
             # consisting of the namespace of the defining class and
-            # the instance name. So, for the Microsoft Graph interface
-            # defined as
+            # the instance name. So, for the Microsoft Graph and Azure
+            # interface defined as
             #
-            #     ::ms::Graph create myapp
+            #     ::ms::Graph create app
+            #     ::ms::Authorize create azure
             #
-            # the path is "ns/server/$server/ms/myapp". The lookup
-            # will be performed at least for the "client_id" and
-            # "client_secret".
+            # The lookup will be attempted at least for the
+            # "client_id" and "client_secret".
             #
             set clientName [namespace tail [self]]
             set namespace [string trimleft [namespace parent [:info class]] :]
-            set section "ns/server/[ns_info server]/$namespace/$clientName"
+            #
+            # First lookup on the level of the app, then on the level
+            # above this (e.g. first ".../ms/app", ".../ms/azure",
+            # then ".../ms". When both are used and use the e.g. the
+            # identical "client_id", use the section ".../ms".
+            #
+            set sections "ns/server/[ns_info server]/$namespace/$clientName"
+            lappend sections "ns/server/[ns_info server]/$namespace"
             set configureParameters [lmap p [:info lookup variables] {
                 namespace tail $p
             }]
             ns_log notice "[self] configure parameters: $configureParameters"
 
-            foreach param $configureParameters {
-                ns_log notice "[self] config '$section' ns_param '$param'" \
-                    "already set" [info exists :$param]
-
-                if {![info exists :$param]} {
-                    set value [ns_config $section $param]
-                    if {$value ne ""} {
-                        ns_log notice "config '$section' ns_param '$param' -> '$value'"
-                        set :$param $value
+            foreach section $sections {
+                foreach param $configureParameters {
+                    if {![info exists :$param]} {
+                        set value [ns_config $section $param]
+                        #ns_log notice "[self] '$section' '$param' -> '$value'"
+                        if {$value ne ""} {
+                            ns_log notice "[self] config $param -> '$value'"
+                            set :$param $value
+                        }
                     }
                 }
             }
@@ -81,7 +88,7 @@ namespace eval ::xo {
                 }
                 set context "[:uplevel {current methodpath}] [:uplevel {current args}]"
                 set msg "[self] $context: expected status code $status_codes got $status $error"
-                ns_log notice $msg "\n[ns_set array [dict get $r headers]]"
+                #ns_log notice $msg "\n[ns_set array [dict get $r headers]]"
                 error $msg
             }
             if {[dict exists $r JSON]} {
@@ -209,9 +216,9 @@ namespace eval ::xo {
                            $url]
             }
             set content_type [ns_set iget [dict get $r headers] content-type ""]
-            ns_log notice "[self] $method $url\n" \
-                [expr {[info exists body] ? "$body\n" : ""}] \
-                "Answer: $r ($content_type)"
+            #ns_log notice "[self] $method $url\n" \
+            #    [expr {[info exists body] ? "$body\n" : ""}] \
+            #    "Answer: $r ($content_type)"
             return [:with_json_result r]
         }
 
@@ -260,10 +267,10 @@ namespace eval ::xo {
             # formatting, such as e.g. quoting.
             #
             if {[info commands ::mongo::json::generate] ne ""} {
-                ns_log notice "typed_list_to_json (mongo): $triples"
+                #ns_log notice "typed_list_to_json (mongo): $triples"
                 return [::mongo::json::generate $triples]
             } else {
-                ns_log notice "typed_list_to_json (tcl): $triples"
+                #ns_log notice "typed_list_to_json (tcl): $triples"
                 set result ""
                 foreach {name type value} $triples {
                     lappend result [subst {"$name":[:typed_value_to_json $type $value]}]
