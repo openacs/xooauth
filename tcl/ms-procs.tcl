@@ -1132,6 +1132,14 @@ namespace eval ::ms {
             }]
         }
 
+        :public method logout {} {
+            #
+            # Perform logout operation form MS in the background
+            # (i.e. without a redirect).
+            #
+            ns_http run [ms::azure logout_url]
+        }
+
         :method get_user_data {{required_fields {upn family_name given_name}}} {
             #
             # Get data from the query variables "id_token", "error"
@@ -1258,7 +1266,7 @@ namespace eval ::ms {
                 #ad_script_abort
             } else {
                 set user_id [:lookup_user_id $data]
-                if {${:create_not_registered_users}} {
+                if {$user_id == 0 && ${:create_not_registered_users}} {
                     try {
                         :register_new_user $data
                     } on ok result {
@@ -1266,7 +1274,6 @@ namespace eval ::ms {
                     } on error {errorMsg} {
                         dict set data error oacs-register_failed
                         dict set data error_description $errorMsg
-                        set user_id 0
                     }
                 }
                 dict set data user_id $user_id
@@ -1276,9 +1283,9 @@ namespace eval ::ms {
                     # - Sync/check validity of the token vs. the validity
                     #   of the login cookie.
                     # - maybe set an extra cookie to perform token refresh
-                    #   from azure when the login expires.
+                    #   from Azure when the login expires.
                     #
-                    ad_user_login $user_id
+                    ad_user_login -external_registry [self] $user_id
                     #ad_returnredirect ${:after_successful_login_url}
                     #ad_script_abort
 
