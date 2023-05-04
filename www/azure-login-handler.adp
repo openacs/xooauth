@@ -1,4 +1,6 @@
 <master>
+<property name="doc(title)">@title;literal@</property>
+
 <h1>Azure Interface</h2>
 
 <ul>

@@ -1088,6 +1088,7 @@ namespace eval ::ms {
     ###########################################################
 
     nx::Class create Authorize -superclasses ::xo::REST {
+        :property {tenant}
 
         :property {responder_url /oauth/azure-login-handler}
         :property {after_successful_login_url /}
@@ -1095,18 +1096,36 @@ namespace eval ::ms {
 
         :property {create_not_registered_users:switch false}
         :property {create_with_dotlrn_role ""}
+        :property {version ""}
 
         :public method login_url {
-            {-prompt ""}
+            {-prompt}
+            {-state}
+            {-login_hint}
+            {-domain_hint}
+            {-code_challenge}
+            {-code_challenge_method}
         } {
             #
             # Returns the URL for logging in
             #
-            # "oauth2/authorize" is defined in RFC 6749,
-            # but requests for MS id-tokens are defined here:
+            # "oauth2/authorize" is defined in RFC 6749, but requests
+            # for MS id-tokens inversion v1.0 and v2.0 are defined
+            # here:
             # https://learn.microsoft.com/en-us/azure/active-directory/develop/id-tokens
             #
-            set base https://login.microsoftonline.com/common/oauth2/authorize
+            if {${:version} eq ""} {
+                set base https://login.microsoftonline.com/common/oauth2/authorize
+            } else {
+                #
+                # When version "v2.0" is used, the concrete tenant
+                # (i.e. not "common" as in the earlier version) has to
+                # be specified, unless the MS application is
+                # configured as a multi-tenant application.
+                #
+                set base https://login.microsoftonline.com/${:tenant}/oauth2/${:version}/authorize
+            }
+
             set response_type "code id_token"
             set client_id ${:client_id}
             set scope "openid offline_access"
@@ -1114,7 +1133,8 @@ namespace eval ::ms {
             set response_mode form_post
             set redirect_uri "[ad_url]${:responder_url}"
             return [export_vars -no_empty -base $base {
-                prompt response_type client_id scope nonce response_mode redirect_uri
+                client_id response_type redirect_uri response_mode state scope nonce
+                prompt login_hint domain_hint code_challenge code_challenge_method
             }]
         }
 
@@ -1144,8 +1164,13 @@ namespace eval ::ms {
             #
             # Get data from the query variables "id_token", "error"
             # and "token".  In case of an error or incomplete data,
-            # add this information the result dict. The error codes
-            # returned by Azure are defined here:
+            # add this information the result dict. Per default, we
+            # require "upn" (user principal name), "family_name" and
+            # "given_name". See here for AD claim sets
+            # https://learn.microsoft.com/en-us/azure/active-directory/develop/active-directory-optional-claims
+            #
+            #
+            # The error codes returned by Azure are defined here:
             # https://learn.microsoft.com/en-us/azure/active-directory/develop/reference-error-codes
             # Extra errors for OpenACS are prefixed with "oacs-"
             #
@@ -1153,6 +1178,8 @@ namespace eval ::ms {
 
             set result {}
             lassign [split [ns_queryget id_token] .] jwt_header jwt_claims jwt_signature
+
+            #ns_log notice "[self]: jwt_header <[:json_to_dict [encoding convertfrom "utf-8" [ns_base64decode -binary -- $jwt_header]]]>"
 
             if {$jwt_claims eq ""} {
                 dict set result error [ns_queryget error]
@@ -1296,8 +1323,8 @@ namespace eval ::ms {
                     #
                     dict set data error "oacs-no_such_user"
                 }
-                return $data
             }
+            return $data
         }
 
     }
