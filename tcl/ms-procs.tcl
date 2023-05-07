@@ -1097,6 +1097,8 @@ namespace eval ::ms {
         :property {create_not_registered_users:switch false}
         :property {create_with_dotlrn_role ""}
         :property {version ""}
+        :property {scope {openid offline_access profile}}
+        :property {response_type {code id_token}}
 
         :public method login_url {
             {-prompt}
@@ -1126,15 +1128,17 @@ namespace eval ::ms {
                 set base https://login.microsoftonline.com/${:tenant}/oauth2/${:version}/authorize
             }
 
-            set response_type "code id_token"
             set client_id ${:client_id}
-            set scope "openid offline_access"
+            set scope ${:scope}
+            set response_type ${:response_type}
             set nonce [::xo::oauth::nonce]
             set response_mode form_post
             set redirect_uri "[ad_url]${:responder_url}"
-            return [export_vars -no_empty -base $base {
-                client_id response_type redirect_uri response_mode state scope nonce
-                prompt login_hint domain_hint code_challenge code_challenge_method
+            
+            return [export_vars -no_empty -base $base {                
+                client_id response_type redirect_uri response_mode
+                state scope nonce prompt login_hint domain_hint
+                code_challenge code_challenge_method                
             }]
         }
 
