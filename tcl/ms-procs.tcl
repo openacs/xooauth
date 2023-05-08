@@ -1087,16 +1087,12 @@ namespace eval ::ms {
     # https://learn.microsoft.com/en-us/azure/active-directory/develop/id-tokens
     ###########################################################
 
-    nx::Class create Authorize -superclasses ::xo::REST {
+    nx::Class create ::ms::Authorize -superclasses ::xo::Authorize {
+        :property {pretty_name "Azure"}
         :property {tenant}
+        :property {version ""}
 
         :property {responder_url /oauth/azure-login-handler}
-        :property {after_successful_login_url /}
-        :property {login_failure_url /}
-
-        :property {create_not_registered_users:switch false}
-        :property {create_with_dotlrn_role ""}
-        :property {version ""}
         :property {scope {openid offline_access profile}}
         :property {response_type {code id_token}}
 
@@ -1116,7 +1112,7 @@ namespace eval ::ms {
             # here:
             # https://learn.microsoft.com/en-us/azure/active-directory/develop/id-tokens
             #
-            if {${:version} eq ""} {
+            if {${:version} in {"" "v1.0"}} {
                 set base https://login.microsoftonline.com/common/oauth2/authorize
             } else {
                 #
@@ -1161,18 +1157,19 @@ namespace eval ::ms {
             # Perform logout operation form MS in the background
             # (i.e. without a redirect).
             #
-            ns_http run [ms::azure logout_url]
+            ns_http run [:logout_url]
         }
 
-        :method get_user_data {{required_fields {upn family_name given_name}}} {
+        :method get_user_data {
+            -token
+        } {
             #
-            # Get data from the query variables "id_token", "error"
-            # and "token".  In case of an error or incomplete data,
-            # add this information the result dict. Per default, we
-            # require "upn" (user principal name), "family_name" and
-            # "given_name". See here for AD claim sets
+            # Get data via the provided token (which comes from the
+            # "id_token").  In case of an error or incomplete data,
+            # add this information the result dict.
+            #
+            # See here for AD claim sets
             # https://learn.microsoft.com/en-us/azure/active-directory/develop/active-directory-optional-claims
-            #
             #
             # The error codes returned by Azure are defined here:
             # https://learn.microsoft.com/en-us/azure/active-directory/develop/reference-error-codes
@@ -1181,7 +1178,7 @@ namespace eval ::ms {
             # @return return a dict containing the extracted fields
 
             set result {}
-            lassign [split [ns_queryget id_token] .] jwt_header jwt_claims jwt_signature
+            lassign [split $token .] jwt_header jwt_claims jwt_signature
 
             #ns_log notice "[self]: jwt_header <[:json_to_dict [encoding convertfrom "utf-8" [ns_base64decode -binary -- $jwt_header]]]>"
 
@@ -1190,147 +1187,25 @@ namespace eval ::ms {
                 return $result
             }
 
-            set claims [:json_to_dict [encoding convertfrom "utf-8" [ns_base64decode -binary -- $jwt_claims]]]
+            set claims [:json_to_dict \
+                            [encoding convertfrom "utf-8" \
+                                 [ns_base64decode -binary -- $jwt_claims]]]
             dict set result claims $claims
 
-            foreach field $required_fields {
-                if {![dict exists $claims $field] || [dict get $claims $field] eq ""} {
-                    set not_enough_data $field
-                    break
-                }
-            }
-            if {[info exists not_enough_data]} {
-                dict set result error oacs-not_enough_data
+            set data [:get_required_fields \
+                          -claims $claims \
+                          -required_fields {
+                              {upn email}
+                              {family_name last_name}
+                              {given_name first_names}
+                          }]
+            if {[dict exists $data error]} {
+                set result [dict merge $data $result]
+            } else {
+                set result [dict merge $result [dict get $data fields]]
             }
             return $result
         }
-
-        :method lookup_user_id {data} -returns integer {
-            set email [dict get $data claims upn]
-            set user_id [party::get_by_email -email [string tolower $email]]
-            if {$user_id eq ""} {
-                #
-                # Here one could do some more checks or alternative lookups
-                #
-            }
-            return [expr {$user_id eq "" ? 0 : $user_id}]
-        }
-
-        :method register_new_user {data} -returns integer {
-            #
-            # Register the user and return the user_id. In case, the
-            # registration of the new user failes, raise an exception.
-            #
-            # not tested
-            #
-            db_transaction {
-                set user_info(first_names) [dict get $data given_name]
-                set user_info(last_name) [dict get $data family_name]
-                if {![util_email_unique_p [dict get $data upn]]} {
-                    error "Email is not unique: [dict get $data upn]"
-                }
-                set user_info(email) [dict get $data upn]
-                array set creation_info [auth::create_local_account \
-                                             -authority_id [auth::authority::local] \
-                                             -username [dict get $data upn] \
-                                             -array user_info]
-                if {$creation_info(creation_status) ne "ok"} {
-                    error "Error when creating user: $creation_info(creation_status) $creation_info(element_messages)"
-                }
-                set user_id $creation_info(user_id)
-                set email [dict get $data upn]
-                #db_dml _ "INSERT INTO azure_users VALUES (:user_id)"
-                #db_dml _ "INSERT INTO azure_user_mails (user_id, email) VALUES (:user_id, :email)"
-
-                if {[apm_package_installed_p dotlrn] && ${:create_with_dotlrn_role} ne ""} {
-                    #
-                    # We have DotLRN installed, and we want to create
-                    # for this register object the new users in the
-                    # provided role. Note that one can define
-                    # different instances of this class behaving
-                    # differently.
-                    #
-                    dotlrn::user_add \
-                        -type ${:create_with_dotlrn_role} \
-                        -can_browse=1 \
-                        -id $email \
-                        -user_id $user_id
-
-                    acs_privacy::set_user_read_private_data \
-                        -user_id $user_id \
-                        -object_id [dotlrn::get_package_id] \
-                        -value 1
-                }
-            } on_error {
-                ns_log error "Azure Login (Error during user creation): $errmsg ($email)"
-                #
-                # logout the user from Azure and report an error message.
-                #
-                # For the time being the error is reported via
-                # util_user_message. We could as well define an extra
-                # error page and pass the error message and/or some
-                # error code to it.
-                #
-                error "Azure user creation failed: $errmsg"
-            }
-            return $user_id
-        }
-
-        :public method perform_login {} {
-            #
-            # Get the provided claims from the Azure response and
-            # perform an OpenACS login, when the user exists.
-            #
-            # In case the user does not exist, create it optionally (when
-            # "create_not_registered_users" is activated for this
-            # object).
-            #
-            # When the user is created, and dotlrn is installed, the
-            # new user might be added optionally as a dotlrn user with
-            # the role as specified in "create_with_dotlrn_role".
-            #
-            set data [:get_user_data]
-            if {[dict exists $data error]} {
-                ns_log warning "Azure login failed: [dict get $data error]\n$data"
-                #util_user_message -message "Azure login failed: [dict get $data error]"
-                #ad_returnredirect ${:login_failure_url}
-                #ad_script_abort
-            } else {
-                set user_id [:lookup_user_id $data]
-                if {$user_id == 0 && ${:create_not_registered_users}} {
-                    try {
-                        :register_new_user $data
-                    } on ok result {
-                        set user_id $result
-                    } on error {errorMsg} {
-                        dict set data error oacs-register_failed
-                        dict set data error_description $errorMsg
-                    }
-                }
-                dict set data user_id $user_id
-                if {$user_id != 0} {
-                    #
-                    # Still to do:
-                    # - Sync/check validity of the token vs. the validity
-                    #   of the login cookie.
-                    # - maybe set an extra cookie to perform token refresh
-                    #   from Azure when the login expires.
-                    #
-                    ad_user_login -external_registry [self] $user_id
-                    #ad_returnredirect ${:after_successful_login_url}
-                    #ad_script_abort
-
-                } else {
-                    #
-                    # For the time being, just report data back to the
-                    # calling script.
-                    #
-                    dict set data error "oacs-no_such_user"
-                }
-            }
-            return $data
-        }
-
     }
 
     #
