@@ -112,9 +112,15 @@ namespace eval ::xo {
             return [expr {$user_id eq "" ? 0 : $user_id}]
         }
 
+        :method required_fields {} {
+            return [expr {${:create_not_registered_users}
+                          ? "email given_name family_name" 
+                          : "email"}]
+        }
+        
         :method get_required_fields {
             {-claims:required}
-            {-required_fields:required}
+            {-mapped_fields:required}           
         } {
             #
             # Check, if required fields are provided in the claims and
@@ -123,17 +129,21 @@ namespace eval ::xo {
             #
             set result ""
 
-            foreach pair $required_fields {
+            set fields {}
+            foreach pair $mapped_fields {
                 lassign $pair field target
-                if {![dict exists $claims $field]
-                    || [dict get $claims $field] in {"" "null"}
+                dict set fields $target [dict get $claims $field]
+            }
+            dict set result fields $fields
+            foreach field [:required_fields] {
+                if {![dict exists $fields $field]
+                    || [dict get $fields $field] in {"" "null"}
                 } {
                     set not_enough_data $field
                     break
                 }
-                dict set result fields $target [dict get $claims $field]
             }
-
+            
             if {[info exists not_enough_data]} {
                 ns_log warning "[self] get_user_data: not enough data:" \
                     $not_enough_data "is missing"
@@ -329,7 +339,7 @@ namespace eval ::xo {
                 if {![dict exists $result error]} {
                     set data [:get_required_fields \
                                   -claims [dict get $result claims] \
-                                  -required_fields {
+                                  -mapped_fields {
                                       {email email}
                                       {name name}
                                   }]

@@ -1194,7 +1194,7 @@ namespace eval ::ms {
 
             set data [:get_required_fields \
                           -claims $claims \
-                          -required_fields {
+                          -mapped_fields {
                               {upn email}
                               {family_name last_name}
                               {given_name first_names}
