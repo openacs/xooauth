@@ -1129,7 +1129,7 @@ namespace eval ::ms {
             set response_type ${:response_type}
             set nonce [::xo::oauth::nonce]
             set response_mode form_post
-            set redirect_uri "[ad_url]${:responder_url}"
+            set redirect_uri [:qualifed ${:responder_url}]
             
             return [export_vars -no_empty -base $base {                
                 client_id response_type redirect_uri response_mode
@@ -1146,7 +1146,7 @@ namespace eval ::ms {
             # redirects to the given page.
             #
             set base https://login.microsoftonline.com/common/oauth2/logout
-            set post_logout_redirect_uri [ad_url]$page
+            set post_logout_redirect_uri [:qualified $page]
             return [export_vars -no_empty -base $base {
                 post_logout_redirect_uri
             }]

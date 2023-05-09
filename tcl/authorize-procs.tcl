@@ -35,6 +35,10 @@ namespace eval ::xo {
         :property {scope}
         :property {debug:switch false}
 
+        :method qualified {partial_url} {
+            return [util_current_location]$partial_url
+        }
+        
         :public method login_url {
             {-state}
             {-login}
@@ -46,7 +50,7 @@ namespace eval ::xo {
             set client_id ${:client_id}
             set scope ${:scope}
             set state [::xo::oauth::nonce]
-            set redirect_uri "[ad_url]${:responder_url}"
+            set redirect_uri [:qualifed ${:responder_url}]
 
             return [export_vars -no_empty -base $base {
                 client_id redirect_uri state scope login
@@ -56,7 +60,7 @@ namespace eval ::xo {
         :method redeem_code {code} {
             set client_id ${:client_id}
             set client_secret ${:client_secret}
-            set redirect_uri "[ad_url]${:responder_url}"
+            set redirect_uri [:qualifed ${:responder_url}]
             set url [export_vars -no_empty -base ${:base_url}/access_token {
                 client_id client_secret code redirect_uri
             }]
