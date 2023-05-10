@@ -1129,7 +1129,7 @@ namespace eval ::ms {
             set response_type ${:response_type}
             set nonce [::xo::oauth::nonce]
             set response_mode form_post
-            set redirect_uri [:qualifed ${:responder_url}]
+            set redirect_uri [:qualified ${:responder_url}]
             
             return [export_vars -no_empty -base $base {                
                 client_id response_type redirect_uri response_mode
