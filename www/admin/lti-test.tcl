@@ -57,7 +57,7 @@ user_id=me100}}
         {autosubmit_p:boolean(radio)
             {label {Autologin}}
             {options {{On true} {Off false}}}
-            {help_text {Toogle autologin. If "Off" is selected a "Launch"-button
+            {help_text {Toggle autologin. If "Off" is selected a "Launch"-button
                         will be displayed beneath this form.}}
             {value false}
         }
