@@ -1098,7 +1098,7 @@ namespace eval ::ms {
 
         :public method login_url {
             {-prompt}
-            {-state}
+            {-return_url ""}
             {-login_hint}
             {-domain_hint}
             {-code_challenge}
@@ -1129,12 +1129,13 @@ namespace eval ::ms {
             set response_type ${:response_type}
             set nonce [::xo::oauth::nonce]
             set response_mode form_post
+            set state [:encoded_state -return_url $return_url]
             set redirect_uri [:qualified ${:responder_url}]
-            
-            return [export_vars -no_empty -base $base {                
+
+            return [export_vars -no_empty -base $base {
                 client_id response_type redirect_uri response_mode
                 state scope nonce prompt login_hint domain_hint
-                code_challenge code_challenge_method                
+                code_challenge code_challenge_method
             }]
         }
 
@@ -1168,7 +1169,7 @@ namespace eval ::ms {
             # "id_token").  In case of an error or incomplete data,
             # add this information the result dict.
             #
-            # See here for AD claim sets
+            # See here for AD claim sets:
             # https://learn.microsoft.com/en-us/azure/active-directory/develop/active-directory-optional-claims
             #
             # The error codes returned by Azure are defined here:

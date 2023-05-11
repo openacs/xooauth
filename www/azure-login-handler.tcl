@@ -17,12 +17,14 @@ set swa_p [acs_user::site_wide_admin_p]
 set name [$auth_obj name]
 set title "$name Authorization"
 
-set login_url [$auth_obj login_url]
+set login_url [$auth_obj login_url -return_url [ns_queryget return_url]]
 set logout_url [$auth_obj logout_url]
 set data ""
 
 if {[ns_queryget id_token] ne ""} {
-    set data [$auth_obj perform_login -token [ns_queryget id_token]]
+    set data [$auth_obj perform_login \
+                  -token [ns_queryget id_token] \
+                  -state [ns_queryget state]]
 }
 
 if {![$auth_obj cget -debug]
@@ -32,15 +34,15 @@ if {![$auth_obj cget -debug]
     #
     # Login was performed, just redirect to the right place.
     #
-    # We can use "state" on Azure as redirect URL (since it has a
-    # nonce)
-    set redirect_url [ns_queryget state \
-                          [$auth_obj cget -after_successful_login_url]]
-    if {[string range $redirect_url 0 0] eq "/"} {
-        ad_returnredirect $redirect_url
-    } else {
-        ns_log warning "Azure redirect URL looks suspicious: '$redirect_url'"
+    set return_url [$auth_obj cget -after_successful_login_url]
+    if {[dict exists $data decoded_state return_url]} {
+        set return_url [dict get $data decoded_state return_url]
     }
+    if {[string range $return_url 0 0] ne "/"} {
+        ns_log warning "Azure redirect URL looks suspicious: '$return_url'"
+        set return_url /pvt
+    }
+    ad_returnredirect $redirect_url
     ad_script_abort
 }
 

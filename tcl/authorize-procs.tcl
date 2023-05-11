@@ -38,9 +38,23 @@ namespace eval ::xo {
         :method qualified {partial_url} {
             return [util_current_location]$partial_url
         }
-        
+
+        :method encoded_state {{-return_url ""}} {
+            set state [::xo::oauth::nonce]
+            append state . [ns_base64urlencode $return_url]
+            return $state
+        }
+
+        :method decoded_state {state} {
+            lassign [split $state .] nonce encoded_url
+            return [list \
+                        nonce $nonce \
+                        return_url [ns_base64urldecode $encoded_url]]
+        }
+
+
         :public method login_url {
-            {-state}
+            {-return_url ""}
             {-login}
         } {
             #
@@ -49,7 +63,7 @@ namespace eval ::xo {
             set base ${:base_url}/authorize
             set client_id ${:client_id}
             set scope ${:scope}
-            set state [::xo::oauth::nonce]
+            set state [:encoded_state -return_url $return_url]
             set redirect_uri [:qualified ${:responder_url}]
 
             return [export_vars -no_empty -base $base {
@@ -118,13 +132,13 @@ namespace eval ::xo {
 
         :method required_fields {} {
             return [expr {${:create_not_registered_users}
-                          ? "email given_name family_name" 
+                          ? "email given_name family_name"
                           : "email"}]
         }
-        
+
         :method get_required_fields {
             {-claims:required}
-            {-mapped_fields:required}           
+            {-mapped_fields:required}
         } {
             #
             # Check, if required fields are provided in the claims and
@@ -147,7 +161,7 @@ namespace eval ::xo {
                     break
                 }
             }
-            
+
             if {[info exists not_enough_data]} {
                 ns_log warning "[self] get_user_data: not enough data:" \
                     $not_enough_data "is missing"
@@ -216,7 +230,7 @@ namespace eval ::xo {
             return $user_id
         }
 
-        :public method perform_login {-token} {
+        :public method perform_login {-token {-state ""}} {
             #
             # Get the provided claims from the identity provider and
             # perform an OpenACS login, when the user exists.
@@ -247,6 +261,7 @@ namespace eval ::xo {
                     [dict get $data error] "\n$data"
 
             } else {
+                dict set data decoded_state [:decoded_state $state]
                 set user_id [:lookup_user_id -email [dict get $data email]]
                 if {!${:debug}
                     && $user_id == 0
