@@ -170,6 +170,18 @@ namespace eval ::xo {
             return $result
         }
 
+        :method record_oauth_registration {user_id} {
+            #
+            # Record the fact that this user_id was created via an
+            # OAuth identity provider.
+            #
+            set auth_obj [self]
+            db_dml _ {
+                INSERT INTO xooauth_authorized_users (user_id, auth_obj)
+                VALUES (:user_id, :auth_obj)
+            }
+        }
+
         :method register_new_user {
             {-first_names}
             {-last_name}
@@ -193,16 +205,14 @@ namespace eval ::xo {
                                              -username $email \
                                              -array user_info]
                 if {$creation_info(creation_status) ne "ok"} {
-                    error "Error when creating user: $creation_info(creation_status) $creation_info(element_messages)"
+                    set errorMsg ""
+                    error [append errorMsg "Error when creating user: " \
+                               $creation_info(creation_status) " " \
+                               $creation_info(element_messages)]
                 }
+
                 set user_id $creation_info(user_id)
-                #
-                # One might add here a callback to handle cases, where
-                # externally provided identities should be added to a
-                # database.
-                #
-                #db_dml _ "INSERT INTO azure_users VALUES (:user_id)"
-                #db_dml _ "INSERT INTO azure_user_mails (user_id, email) VALUES (:user_id, :email)"
+                :record_oauth_registration $user_id
 
                 if {[apm_package_installed_p dotlrn] && ${:create_with_dotlrn_role} ne ""} {
                     #
@@ -395,6 +405,18 @@ namespace eval ::xo {
 
     }
 
+    #
+    # In general it might be possible, that a user is identified over
+    # multiple OAuth identity providers, so the unique constraint
+    # might be too strong. For now, we add only users to this table,
+    # which were created from this authority - such that the unique
+    # constraint holds.
+    #
+    ::xo::db::require table xooauth_authorized_users [subst {
+        user_id   {integer references users(user_id) on delete cascade}
+        auth_obj  {character varying(255)}
+    }]
+    ::xo::db::require index -table xooauth_authorized_users -col user_id -unique true
 }
 ::xo::library source_dependent
 #
