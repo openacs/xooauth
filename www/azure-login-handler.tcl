@@ -42,7 +42,7 @@ if {![$auth_obj cget -debug]
         ns_log warning "Azure redirect URL looks suspicious: '$return_url'"
         set return_url /pvt
     }
-    ad_returnredirect $redirect_url
+    ad_returnredirect $return_url
     ad_script_abort
 }
 
