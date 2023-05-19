@@ -394,19 +394,19 @@ namespace eval ::xo {
             return $result
         }
 
-        :public method logout_url { {page ""} } {
+        :public method logout_url { {-return_url ""} } {
             #
             # Returns the URL for logging out. E.g., GitHub has no
             # logout, so provide simply a redirect URL (maybe, we
             # should logout from the application?)
             #
-            return $page
+            return $return_url
         }
 
     }
 
     #
-    # In general it might be possible, that a user is identified over
+    # In general, it might be possible, that a user is identified over
     # multiple OAuth identity providers, so the unique constraint
     # might be too strong. For now, we add only users to this table,
     # which were created from this authority - such that the unique

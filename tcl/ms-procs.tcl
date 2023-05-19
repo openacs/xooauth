@@ -1140,14 +1140,14 @@ namespace eval ::ms {
         }
 
         :public method logout_url {
-            {page ""}
+            {-return_url ""}
         } {
             #
             # Returns the URL for logging out. After the logout, azure
             # redirects to the given page.
             #
             set base https://login.microsoftonline.com/common/oauth2/logout
-            set post_logout_redirect_uri [:qualified $page]
+            set post_logout_redirect_uri [:qualified $return_url]
             return [export_vars -no_empty -base $base {
                 post_logout_redirect_uri
             }]
