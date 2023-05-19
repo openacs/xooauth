@@ -35,27 +35,49 @@ namespace eval ::xo {
             # Set defaults for instance variables from the
             # configuration file. This lookup is fairly generic and
             # takes into account the configure parameter of subclasses
-            # of xo::REST. The parameters are looked up on a path
-            # consisting of the namespace of the defining class and
-            # the instance name. So, for the Microsoft Graph and Azure
-            # interface defined as
+            # of xo::REST. The parameters are looked up from the
+            # configuration file on a path consisting of the namespace
+            # of the defining class and the instance name. So, one
+            # cloud define an app (an MS administrative agent)
+            # "ms::app" for the Microsoft Graph and Azure and
+            # interface objects for the oauth identity providers
+            # "ms::azure" and "xo::oauth::github" like:
             #
-            #     ::ms::Graph create app
-            #     ::ms::Authorize create azure
+            #     ::ms::Graph create ::ms::app
+            #     ::ms::Authorize create ::ms::azure
+            #     ::xo::oauth::GitHub create ::xo::oauth::github
             #
-            # The lookup will be attempted at least for the
-            # "client_id" and "client_secret".
+            # The parameters for these objects can be specified during
+            # creation (.... -client:id "..." ...) or in the
+            # configuration file in the following sections:
             #
+            #     ns/server/[ns_info server]/acs/oauth/ms/app
+            #     ns/server/[ns_info server]/acs/oauth/ms/azure
+            #     ns/server/[ns_info server]/acs/oauth/github
+            #
+            # In case, one wants a common parameters for "ms::app" and
+            # "ms::azure", one might use just the section:
+            #
+            #     ns/server/[ns_info server]/acs/oauth/ms
+            #
+            
             set clientName [namespace tail [self]]
             set namespace [string trimleft [namespace parent [:info class]] :]
+            if {$namespace eq "xo::oauth"} {
+                set namespace ""
+            }
             #
             # First lookup on the level of the app, then on the level
             # above this (e.g. first ".../ms/app", ".../ms/azure",
             # then ".../ms". When both are used and use the e.g. the
             # identical "client_id", use the section ".../ms".
             #
-            set sections "ns/server/[ns_info server]/$namespace/$clientName"
-            lappend sections "ns/server/[ns_info server]/$namespace"
+            if {$namespace ne ""} {
+                set sections "ns/server/[ns_info server]/acs/oauth/$namespace/$clientName"
+                lappend sections "ns/server/[ns_info server]/acs/oauth/$namespace"
+            } else {
+                set sections "ns/server/[ns_info server]/acs/oauth/$clientName"
+            }
             set configureParameters [lmap p [:info lookup variables] {
                 namespace tail $p
             }]
