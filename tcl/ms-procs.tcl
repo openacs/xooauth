@@ -1080,14 +1080,17 @@ namespace eval ::ms {
 
     ###########################################################
     #
-    # ms::Authorize class:
+    # ms::Authorize class
     #
-    # Support for the Microsoft Microsoft identity platform ID
-    # tokens to login/logout via MS Azure accounts.
-    # https://learn.microsoft.com/en-us/azure/active-directory/develop/id-tokens
     ###########################################################
 
     nx::Class create ::ms::Authorize -superclasses ::xo::Authorize {
+        #
+        # Support for the Microsoft Microsoft identity platform ID
+        # tokens to login/logout via MS Azure accounts.
+        # https://learn.microsoft.com/en-us/azure/active-directory/develop/id-tokens
+        #
+
         :property {pretty_name "Azure"}
         :property {tenant}
         :property {version ""}

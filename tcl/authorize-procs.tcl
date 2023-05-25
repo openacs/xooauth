@@ -15,13 +15,15 @@ namespace eval ::xo {
 
     ###########################################################
     #
-    # xo::Authorize class:
-    #
-    # Base class to support OAuth authorization API
+    # xo::Authorize class
     #
     ###########################################################
 
     nx::Class create ::xo::Authorize -superclasses ::xo::REST {
+        #
+        # Base class to support OAuth authorization API
+        #
+
         :property {pretty_name}
         :property {base_url}
         :property {responder_url}
@@ -114,6 +116,9 @@ namespace eval ::xo {
         }
 
         :public method name {} {
+            #
+            # @return instance name
+            #
             return [expr {[info exists :pretty_name]
                           ? ${:pretty_name}
                           : [namespace tail [self]]}]
@@ -312,10 +317,15 @@ namespace eval ::xo {
     }
 
     ####################################################################
-    # Tailored OAuth handler for GitHub
+    #
+    # ::xo::oauth::GitHub class
+    #
     ####################################################################
 
     nx::Class create ::xo::oauth::GitHub -superclasses ::xo::Authorize {
+        #
+        # Tailored OAuth handler for GitHub
+        #
 
         :property {pretty_name "GitHub"}
         :property {base_url https://github.com/login/oauth}
