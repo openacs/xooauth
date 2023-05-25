@@ -233,10 +233,10 @@ namespace eval ::xo {
                         -id $email \
                         -user_id $user_id
 
-                    acs_privacy::set_user_read_private_data \
-                        -user_id $user_id \
+                    ::permission::grant \
+                        -party_id $user_id \
                         -object_id [dotlrn::get_package_id] \
-                        -value 1
+                        -privilege read_private_data
                 }
             } on_error {
                 ns_log error "OAuth Login (Error during user creation): $errmsg ($email)"
