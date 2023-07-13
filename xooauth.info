@@ -29,9 +29,9 @@
         <maturity>0</maturity>
 
         <provides url="xooauth" version="0.4d4"/>
-        <requires url="acs-tcl" version="5.10.1d31"/>
-        <requires url="xotcl-core" version="5.10.0"/>
-        <requires url="xowf" version="5.10.1d4"/>
+        <requires url="acs-tcl" version="5.10.1b1"/>
+        <requires url="xotcl-core" version="5.10.1b1"/>
+        <requires url="xowf" version="5.10.1b1"/>
 
         <callbacks>
         </callbacks>
