@@ -249,7 +249,7 @@ namespace eval ::xo {
             # Convert JSON to a Tcl dict and add it to the result
             # dict.
             #
-            if {[info command ::json::json2dict] eq ""} {
+            if {[info commands ::json::json2dict] eq ""} {
                 package require json
             }
             return [::json::json2dict $json_string]
