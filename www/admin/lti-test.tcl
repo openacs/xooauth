@@ -168,7 +168,7 @@ user_id=me100}}
                     name $form_name id $form_name method "POST" \
                     encType "application/x-www-form-urlencoded" {
                         foreach pair $lti_form_parameters {
-                            foreach {k v} $pair break
+                            lassign $pair k v
                                 if {$k eq "basiclti_submit"} {
                                     ::html::input type submit name basiclti_submit value $basiclti_submit {}
                                 } else {
