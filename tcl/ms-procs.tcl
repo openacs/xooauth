@@ -1184,16 +1184,19 @@ namespace eval ::ms {
             set result {}
             lassign [split $token .] jwt_header jwt_claims jwt_signature
 
-            #ns_log notice "[self]: jwt_header <[:json_to_dict [encoding convertfrom "utf-8" [ns_base64decode -binary -- $jwt_header]]]>"
+            #ns_log notice "[self]: jwt_header <[:json_to_dict [encoding convertfrom "utf-8" [ns_base64urldecode -- $jwt_header]]]>"
 
             if {$jwt_claims eq ""} {
                 dict set result error [ns_queryget error]
                 return $result
             }
-
+            #
+            # At least in the case of Azure, the jwt content is
+            # already in UTF-8, so no "-binary" flag is needed.
+            #
             set claims [:json_to_dict \
                             [encoding convertfrom "utf-8" \
-                                 [ns_base64decode -binary -- $jwt_claims]]]
+                                 [ns_base64urldecode -- $jwt_claims]]]
             dict set result claims $claims
 
             set data [:get_required_fields \
