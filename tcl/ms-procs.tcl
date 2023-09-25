@@ -558,7 +558,7 @@ namespace eval ::ms {
             # Details: https://docs.microsoft.com/en-us/graph/api/group-list-memberof
             #
             # @param count when "true" return just a count
-            # @param filter  filter citerion
+            # @param filter  filter criterion
             # @param search search criterion, e.g. displayName:Video
             # @param orderby sorting criterion, e.g. displayName
             #
@@ -1065,7 +1065,7 @@ namespace eval ::ms {
             # Details: https://docs.microsoft.com/en-us/graph/api/user-list-memberof
             #
             # @param count when "true" return just a count
-            # @param filter  filter citerion
+            # @param filter  filter criterion
             # @param search search criterion, e.g. displayName:Video
             # @param orderby sorting criterion, e.g. displayName
 
