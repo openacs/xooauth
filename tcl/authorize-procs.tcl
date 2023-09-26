@@ -155,7 +155,9 @@ namespace eval ::xo {
             set fields {}
             foreach pair $mapped_fields {
                 lassign $pair field target
-                dict set fields $target [dict get $claims $field]
+                if {[dict exists $claims $field]} {
+                    dict set fields $target [dict get $claims $field]
+                }
             }
             dict set result fields $fields
             foreach field [:required_fields] {
@@ -169,7 +171,8 @@ namespace eval ::xo {
 
             if {[info exists not_enough_data]} {
                 ns_log warning "[self] get_user_data: not enough data:" \
-                    $not_enough_data "is missing"
+                    $not_enough_data "is missing" \
+                    "($field -> $target, claims: $claims)"
                 dict set result error oacs-not_enough_data
             }
             return $result
