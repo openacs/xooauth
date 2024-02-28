@@ -240,7 +240,7 @@ namespace eval ::xo {
 
         :public method form_render {
             {-height 700}
-            {-sandbox "allow-same-origin allow-scripts allow-forms allow-top-navigation allow-popups allow-popups-to-escape-sandbox allow-downloads"}
+            {-sandbox {}}
             {-style "min-width:100%;width:100%;min-height:100%;"}
             {-auto_launch_p 0}
         } {

@@ -95,13 +95,15 @@ user_id=me100}}
         set basiclti_submit "Launch"
         set params(basiclti_submit) $basiclti_submit
 
+        #
         # iframe
-        set iframe_attributes ""
-        if {$iframe_attributes eq "" } {
-            set iframe_attributes {
-                style "min-width:100%;border:0px;min-height:800px;resize:both;overflow:auto;"
-                sandbox "allow-same-origin allow-scripts allow-forms allow-top-navigation allow-popups allow-popups-to-escape-sandbox"
-            }
+        #
+        # Note: we do not set any kind of sandboxing here, but it
+        # could be appropropriate. See
+        # https://developer.mozilla.org/en-US/docs/Web/HTML/Element/iframe#sandbox
+        #
+        set iframe_attributes {
+            style "min-width:100%;border:0px;min-height:800px;resize:both;overflow:auto;"
         }
 
         # default parameter
@@ -179,7 +181,6 @@ user_id=me100}}
             }
 
             if {$params(launch_presentation_document_target) eq "iframe"} {
-                #::html::iframe name $target width $width height $height style $style sandbox "allow-same-origin allow-scripts allow-forms allow-top-navigation allow-popups allow-popups-to-escape-sandbox" {}
                 ::html::iframe name $target {*}$iframe_attributes
             }
 
