@@ -561,7 +561,7 @@ namespace eval ::xo::oauth {
       OAuth defines a set of protocol parameters, which have to be transmitted
       in the authenticated requests. These parameters are typically included in
       the "Authorization" HTTP header. This class defines this set of parameters
-      and provides vaious helper method for working with them.
+      and provides various helper methods for working with them.
 
       @see http://tools.ietf.org/html/rfc5849#section-3.1
       @see http://tools.ietf.org/html/rfc5849#section-2.1
