@@ -4,7 +4,7 @@ ad_page_contract {
     @author Gustaf Neumann
 }
 
-set auth_obj ::xo::oauth::github
+set auth_obj ::xo::oauth::GitHub
 
 if {![nsf::is object $auth_obj]} {
     set error "Authorization object '$auth_obj' was not configured"

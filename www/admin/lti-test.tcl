@@ -99,7 +99,7 @@ user_id=me100}}
         # iframe
         #
         # Note: we do not set any kind of sandboxing here, but it
-        # could be appropropriate. See
+        # could be appropriate. See
         # https://developer.mozilla.org/en-US/docs/Web/HTML/Element/iframe#sandbox
         #
         set iframe_attributes {

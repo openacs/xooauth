@@ -265,7 +265,7 @@ namespace eval ::xo::oauth {
   #
 
   Server ad_instproc privilege=oauth {{-login true} user_id package_id method} {
-    This method implements a privilege for the xotcl-core permissions system,
+    This method implements a privilege for the xotcl-core permission system,
     so that one is able to protect methods via policies. For example:
     <pre>
     Class create Package -array set require_permission {
