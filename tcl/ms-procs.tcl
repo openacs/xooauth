@@ -27,6 +27,8 @@
     the Graph API when newer versions (currently post 1.0) of the
     Microsoft Graph API will come out.
 
+    See also: https://openacs.org/xowiki/msgraph
+    
     @author Gustaf Neumann
 
     [1] https://docs.microsoft.com/en-us/graph/auth-v2-service
