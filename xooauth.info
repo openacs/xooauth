@@ -20,6 +20,9 @@
         a comprehensive OAuth implementation for OpenACS, i.e. OAuth
         core, OAuth client, OAuth server.
 
+        The package provides basic support for LTI, Microsoft Graph
+        API, ANVAS REST API, autorization for and GitHub logins.
+
         Probably, just the core part is ready for production use,
         the other functions are currently deactivated.
 
