@@ -10,7 +10,8 @@
     <inherit-templates-p>f</inherit-templates-p>
 
     <version name="0.4" url="http://openacs.org/repository/download/apm/xooauth-0.4.apm">
-        <owner url="mailto:michael.aram@km.co.at">Michael Aram</owner>
+      <owner url="mailto:michael.aram@km.co.at">Michael Aram</owner>
+      <release-date>2024-09-02</release-date>
         <summary>XOTcl based OAuth implementation and OAuth based REST
         interfaces for OpenACS</summary>
         <vendor url="https://km.co.at">KM</vendor>
