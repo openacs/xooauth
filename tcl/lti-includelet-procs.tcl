@@ -70,8 +70,8 @@ namespace eval ::xowiki::includelet {
         $lti destroy
 
         return [subst {
-            <button class="btn btn-primary" title="$launch_button_title"
-            type="submit" form="[dict get $result form_name]">$launch_button_label</button>
+            <adp:button class="btn btn-primary" title="$launch_button_title"
+            type="submit" form="[dict get $result form_name]">$launch_button_label</adp:button>
             [dict get $result HTML]
         }]
     }
