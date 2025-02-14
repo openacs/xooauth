@@ -614,6 +614,22 @@ namespace eval ::ms {
             return [:expect_status_code $r 204]
         }
 
+        :public method "group renew" {
+            group_id
+        } {
+            #
+            # Renew a group
+            #
+            # When a group is renewed, the group expiration is extended by the
+            # number of days defined in the policy.
+            #
+            # Details: https://docs.microsoft.com/graph/api/group-renew
+            #
+            set r [:request -method POST -token [:token] \
+                        -url /groups/${group_id}/renew]
+            return [:expect_status_code $r 204]
+        }
+
         #----------------------------------------------------------
         # ms::Graph "group owner" ensemble
         #----------------------------------------------------------
