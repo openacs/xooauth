@@ -28,7 +28,7 @@
     Microsoft Graph API will come out.
 
     See also: https://openacs.org/xowiki/msgraph
-    
+
     @author Gustaf Neumann
 
     [1] https://docs.microsoft.com/en-us/graph/auth-v2-service
