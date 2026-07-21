@@ -678,7 +678,7 @@ namespace eval ::xo::oauth {
       return [ns_percentdecode -scheme oauth1 $string]
     }
 
-  elseif {[acs::icanuse "ns_urlencode -part oauth1"]} {
+  } elseif {[acs::icanuse "ns_urlencode -part oauth1"]} {
     #
     # In case the new ns_percentencode is not available, try with the
     # deprecated ns_urlencode.
