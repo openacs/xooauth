@@ -663,12 +663,25 @@ namespace eval ::xo::oauth {
 
 ::xo::Module create ::xo::oauth::utility -eval {
 
-  if {[acs::icanuse "ns_urlencode -part oauth1"]} {
+  if {[acs::icanuse "ns_percentencode"]} {
     #
     # Use oauth1 encoding for urlencode as provided by
     # NaviServer. This version is not only a couple of magnitudes
     # faster than the version below, it is as well required, when the
     # coded strings have UTF-8 multibyte characters.
+    #
+    :proc urlencode {string} {
+      return [ns_percentencode -part oauth1 $string]
+    }
+
+    :proc urldecode {string} {
+      return [ns_percentdecode -part oauth1 $string]
+    }
+
+  elseif {[acs::icanuse "ns_urlencode -part oauth1"]} {
+    #
+    # In case the new ns_percentencode is not available, try with the
+    # deprecated ns_urlencode.
     #
     :proc urlencode {string} {
       return [ns_urlencode -part oauth1 $string]
