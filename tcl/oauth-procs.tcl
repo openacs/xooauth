@@ -671,11 +671,11 @@ namespace eval ::xo::oauth {
     # coded strings have UTF-8 multibyte characters.
     #
     :proc urlencode {string} {
-      return [ns_percentencode -part oauth1 $string]
+      return [ns_percentencode -scheme oauth1 $string]
     }
 
     :proc urldecode {string} {
-      return [ns_percentdecode -part oauth1 $string]
+      return [ns_percentdecode -scheme oauth1 $string]
     }
 
   elseif {[acs::icanuse "ns_urlencode -part oauth1"]} {
