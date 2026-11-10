@@ -18,6 +18,8 @@
   Gustaf Neumann
 }
 
+package require uri
+
 namespace eval ::xo {}
 namespace eval ::xo::oauth {
 
